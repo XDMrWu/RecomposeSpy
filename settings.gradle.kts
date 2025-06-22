@@ -1,0 +1,38 @@
+import org.gradle.kotlin.dsl.maven
+
+pluginManagement {
+    repositories {
+        google {
+            content {
+                includeGroupByRegex("com\\.android.*")
+                includeGroupByRegex("com\\.google.*")
+                includeGroupByRegex("androidx.*")
+            }
+        }
+        mavenCentral()
+        gradlePluginPortal()
+        maven {
+            url = uri("local-plugin-repository")
+        }
+    }
+}
+
+dependencyResolutionManagement {
+    repositoriesMode.set(RepositoriesMode.FAIL_ON_PROJECT_REPOS)
+    repositories {
+        google()
+        mavenCentral()
+        maven {
+            url = uri("local-plugin-repository")
+        }
+    }
+}
+
+include(":compiler-plugins:recompose-spy:compiler")
+include(":compiler-plugins:recompose-spy:gradle-plugin")
+
+include(":compiler-plugins:ir-printer:compiler")
+include(":compiler-plugins:ir-printer:gradle-plugin")
+
+rootProject.name = "RecomposeSpy"
+include(":app")
