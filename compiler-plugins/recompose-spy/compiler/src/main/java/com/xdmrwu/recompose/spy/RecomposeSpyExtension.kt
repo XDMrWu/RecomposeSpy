@@ -21,6 +21,7 @@ import org.jetbrains.kotlin.ir.expressions.IrExpression
 import org.jetbrains.kotlin.ir.expressions.IrFunctionExpression
 import org.jetbrains.kotlin.ir.expressions.IrGetValue
 import org.jetbrains.kotlin.ir.types.classOrNull
+import org.jetbrains.kotlin.ir.types.isUnit
 import org.jetbrains.kotlin.ir.util.defaultType
 import org.jetbrains.kotlin.ir.util.file
 import org.jetbrains.kotlin.ir.util.functions
@@ -60,6 +61,7 @@ class RecomposeSpyExtension: BaseExtension() {
                 // 其中包含一个 lambda 作为参数，这个 lambda 会变成一个 IrFunctionExpression，其内部是一个匿名的 IrFunction。
                 // Box(content: @Composable () -> Unit) {
                 // @Composable 不是参数本身的注解，而是参数类型的 FunctionType 的 invoke() 方法带有 @Composable。
+                // TODO IrInlineReferenceLocator.kt isInlineFunctionCall
                 val function = expression.symbol.owner
                 expression.valueArguments.filterIsInstance<IrFunctionExpression>().forEach {
                     val type = it.type
@@ -91,6 +93,7 @@ class RecomposeSpyExtension: BaseExtension() {
         val startLine = irBuilder.irInt(declaration.getStartLine())
         val endLine = irBuilder.irInt(declaration.getEndLine())
         val inline = irBuilder.irBoolean(isInlineLambdaParam || declaration.isInline)
+        val hasReturnType = irBuilder.irBoolean(!declaration.returnType.isUnit())
         val nonSkippable = irBuilder.irBoolean(declaration.nonSkippable())
         val nonRestartable = irBuilder.irBoolean(declaration.nonRestartable())
 
@@ -107,8 +110,9 @@ class RecomposeSpyExtension: BaseExtension() {
             putValueArgument(2, startLine)
             putValueArgument(3, endLine)
             putValueArgument(4, inline)
-            putValueArgument(5, nonSkippable)
-            putValueArgument(6, nonRestartable)
+            putValueArgument(5, hasReturnType)
+            putValueArgument(6, nonSkippable)
+            putValueArgument(7, nonRestartable)
         }
 
         (declaration.body as IrBlockBody).statements.add(0, startCall)

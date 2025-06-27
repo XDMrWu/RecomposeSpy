@@ -29,8 +29,8 @@ object RecomposeSpy {
     // TODO 假设全局只有一个 Composition
 
     fun startComposableCall(fqName: String, file: String, startLine: Int, endLine: Int,
-                            inline: Boolean, nonSkippable: Boolean, nonRestartable: Boolean) {
-        val node = RecomposeSpyTrackNode(fqName, file, startLine, endLine, inline, nonSkippable, nonRestartable)
+                            inline: Boolean, hasReturnType: Boolean = false, nonSkippable: Boolean, nonRestartable: Boolean) {
+        val node = RecomposeSpyTrackNode(fqName, file, startLine, endLine, inline, hasReturnType, nonSkippable, nonRestartable)
         trackNodeStack.add(node)
         if (trackNodeStack.size > 1) {
             val parentNode = trackNodeStack[trackNodeStack.size - 2]
