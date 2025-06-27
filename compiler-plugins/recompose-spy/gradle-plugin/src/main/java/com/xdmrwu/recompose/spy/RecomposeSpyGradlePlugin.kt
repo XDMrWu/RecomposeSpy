@@ -23,6 +23,10 @@ class RecomposeSpyGradlePlugin : KotlinCompilerPluginSupportPlugin {
     override fun applyToCompilation(
         kotlinCompilation: KotlinCompilation<*>
     ): Provider<List<SubpluginOption>> {
+        kotlinCompilation.dependencies {
+            implementation("io.github.xdmrwu:recompose-spy-runtime:0.0.1")
+        }
+
         val project = kotlinCompilation.target.project
         return project.provider { listOf() }
     }
