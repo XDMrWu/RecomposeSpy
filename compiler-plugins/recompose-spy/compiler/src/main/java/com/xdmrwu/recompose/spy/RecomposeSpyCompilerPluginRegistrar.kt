@@ -16,6 +16,7 @@ class RecomposeSpyCompilerPluginRegistrar : CompilerPluginRegistrar() {
 
     override val supportsK2: Boolean = true
 
+    // TODO 自动依赖 runtime
     override fun ExtensionStorage.registerExtensions(configuration: CompilerConfiguration) {
         val extensionsList = getExtensionsList()
         // 插入到最前面，保证在 Compose Compiler 前执行

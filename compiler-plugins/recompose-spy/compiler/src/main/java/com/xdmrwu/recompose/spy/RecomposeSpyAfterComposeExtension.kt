@@ -44,7 +44,10 @@ class RecomposeSpyAfterComposeExtension: BaseExtension() {
 
     private fun replaceDirties(pluginContext: IrPluginContext, irBuilder: DeclarationIrBuilder, declaration: IrFunction) {
         val findDirtiesVariable = findDirtiesVariable(pluginContext, irBuilder, declaration)
-            ?: return // Compose 生成的匿名方法没有提前插桩，跳过
+        if (findDirtiesVariable.isEmpty()) {
+            // Compose 生成的匿名方法没有提前插桩，跳过
+            return
+        }
         val dirtyFlags = findDirtyFlags(pluginContext, irBuilder, declaration)
         replaceGetDirtiesCall(pluginContext, irBuilder, declaration, dirtyFlags, findDirtiesVariable)
     }
@@ -83,9 +86,9 @@ class RecomposeSpyAfterComposeExtension: BaseExtension() {
         return dirtyFlags
     }
 
-    private fun findDirtiesVariable(pluginContext: IrPluginContext, irBuilder: DeclarationIrBuilder, declaration: IrFunction): IrVariable? {
+    private fun findDirtiesVariable(pluginContext: IrPluginContext, irBuilder: DeclarationIrBuilder, declaration: IrFunction): List<IrVariable> {
 
-        var dirties: IrVariable? = null
+        var dirties = mutableListOf<IrVariable>()
 
         declaration.body?.acceptChildrenVoid(object : NestedFunctionAwareVisitor() {
 
@@ -100,7 +103,7 @@ class RecomposeSpyAfterComposeExtension: BaseExtension() {
                 }
                 val variableName = declaration.name.asString()
                 if (variableName == DIRTIES_VAR_NAME && declaration.type.isArray()) {
-                    dirties = declaration
+                    dirties.add(declaration)
                 }
                 super.visitVariable(declaration)
             }
@@ -110,21 +113,23 @@ class RecomposeSpyAfterComposeExtension: BaseExtension() {
     }
 
     private fun replaceGetDirtiesCall(pluginContext: IrPluginContext, irBuilder: DeclarationIrBuilder,
-                                      function: IrFunction, dirtyFlags: List<IrVariable>, findDirtiesVariable: IrVariable) {
-        val arrayOfSymbol = pluginContext.referenceFunctions(CallableId(FqName("kotlin"), null, Name.identifier("arrayOf")))
-            .firstOrNull { funcSymbol ->
-                funcSymbol.owner.valueParameters.any { it.isVararg }
+                                      function: IrFunction, dirtyFlags: List<IrVariable>, findDirtiesVariables: List<IrVariable>) {
+        findDirtiesVariables.forEach {
+            val arrayOfSymbol = pluginContext.referenceFunctions(CallableId(FqName("kotlin"), null, Name.identifier("arrayOf")))
+                .firstOrNull { funcSymbol ->
+                    funcSymbol.owner.valueParameters.any { it.isVararg }
+                }
+            val params = if (dirtyFlags.isNotEmpty()) {
+                dirtyFlags.map { irBuilder.irGet(it) }
+            } else {
+                // 如果没有 dirtyFlags，则使用@Composable 的 $changed 参数
+                listOf(irBuilder.irGet(function.valueParameters.first {it.name.asString() == "${"$"}changed"}))
             }
-        val params = if (dirtyFlags.isNotEmpty()) {
-            dirtyFlags.map { irBuilder.irGet(it) }
-        } else {
-            // 如果没有 dirtyFlags，则使用@Composable 的 $changed 参数
-            listOf(irBuilder.irGet(function.valueParameters.first {it.name.asString() == "${"$"}changed"}))
+            val arrayOfCall = irBuilder.irCall(arrayOfSymbol!!).apply {
+                putTypeArgument(0, pluginContext.irBuiltIns.intType)
+                putValueArgument(0, irBuilder.irVararg(pluginContext.irBuiltIns.intType, params))
+            }
+            it.initializer = arrayOfCall
         }
-        val arrayOfCall = irBuilder.irCall(arrayOfSymbol!!).apply {
-            putTypeArgument(0, pluginContext.irBuiltIns.intType)
-            putValueArgument(0, irBuilder.irVararg(pluginContext.irBuiltIns.intType, params))
-        }
-        findDirtiesVariable.initializer = arrayOfCall
     }
 }

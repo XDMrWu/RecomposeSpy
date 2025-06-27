@@ -18,3 +18,4 @@ local.properties
 /local-plugin-repository/
 /.java-version
 **/build/
+/app/release/

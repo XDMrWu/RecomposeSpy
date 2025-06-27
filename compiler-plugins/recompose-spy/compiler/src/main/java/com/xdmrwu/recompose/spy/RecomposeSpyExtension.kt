@@ -115,28 +115,32 @@ class RecomposeSpyExtension: BaseExtension() {
     }
 
     private fun insertEndCall(pluginContext: IrPluginContext, irBuilder: DeclarationIrBuilder, declaration: IrFunction) {
-        val dirties = getDirties(pluginContext, irBuilder, declaration)
+
         val paramNames = getParamNames(pluginContext, irBuilder, declaration)
         val unusedParamNames = getUnusedParamNames(pluginContext, irBuilder, declaration)
         val readStates = getReadStates(pluginContext, irBuilder, declaration)
         val readCompositionLocals = getReadCompositionLocals(pluginContext, irBuilder, declaration)
 
-        val endCall = irCall(pluginContext, irBuilder, RECOMPOSE_SPY_PACKAGE, RECOMPOSE_SPY_CLASS_NAME, RECOMPOSE_SPY_END_FUN_NAME).apply {
-            dispatchReceiver = irBuilder.irGetObject(
-                pluginContext.referenceClass(
-                    ClassId(
-                        FqName(RECOMPOSE_SPY_PACKAGE), Name.identifier(RECOMPOSE_SPY_CLASS_NAME)
-                    )
-                )!!
-            )
-            putValueArgument(0, irBuilder.irGet(dirties))
-            putValueArgument(1, irBuilder.irGet(paramNames))
-            putValueArgument(2, irBuilder.irGet(unusedParamNames))
-            putValueArgument(3, irBuilder.irGet(readStates))
-            putValueArgument(4, irBuilder.irGet(readCompositionLocals))
-        }
+        declaration.addStatementBeforeReturn {
+            val dirties = getDirties(pluginContext, irBuilder, declaration)
 
-        (declaration.body as IrBlockBody).statements.add(endCall)
+            val endCall = irCall(pluginContext, irBuilder, RECOMPOSE_SPY_PACKAGE, RECOMPOSE_SPY_CLASS_NAME, RECOMPOSE_SPY_END_FUN_NAME).apply {
+                dispatchReceiver = irBuilder.irGetObject(
+                    pluginContext.referenceClass(
+                        ClassId(
+                            FqName(RECOMPOSE_SPY_PACKAGE), Name.identifier(RECOMPOSE_SPY_CLASS_NAME)
+                        )
+                    )!!
+                )
+                putValueArgument(0, irBuilder.irString(declaration.kotlinFqName.asString()))
+                putValueArgument(1, irBuilder.irGet(dirties))
+                putValueArgument(2, irBuilder.irGet(paramNames))
+                putValueArgument(3, irBuilder.irGet(unusedParamNames))
+                putValueArgument(4, irBuilder.irGet(readStates))
+                putValueArgument(5, irBuilder.irGet(readCompositionLocals))
+            }
+            listOf(dirties, endCall)
+        }
     }
 
 
@@ -147,7 +151,6 @@ class RecomposeSpyExtension: BaseExtension() {
             DIRTIES_VAR_NAME,
             initializer = getDirtiesCall
         )
-        (declaration.body as IrBlockBody).statements.add(variable)
         return variable
     }
 
@@ -166,7 +169,7 @@ class RecomposeSpyExtension: BaseExtension() {
             "paramNames",
             initializer = arrayOfCall
         )
-        (declaration.body as IrBlockBody).statements.add(variable)
+        (declaration.body as IrBlockBody).statements.add(0, variable)
 
         return variable
     }
@@ -202,7 +205,7 @@ class RecomposeSpyExtension: BaseExtension() {
             "unusedParamNames",
             initializer = arrayOfCall
         )
-        (declaration.body as IrBlockBody).statements.add(variable)
+        (declaration.body as IrBlockBody).statements.add(0, variable)
 
         return variable
     }

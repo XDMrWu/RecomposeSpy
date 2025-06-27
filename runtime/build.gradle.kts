@@ -1,11 +1,20 @@
 import com.vanniktech.maven.publish.SonatypeHost
+import com.xdmrwu.ir.printer.IrPrinterExtension
+import org.gradle.kotlin.dsl.getByType
+import kotlin.apply
 
 plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
+    id("io.github.xdmrwu.ir.printer") // 顺序
     `maven-publish`
     id("com.vanniktech.maven.publish") version "0.30.0"
+}
+
+extensions.getByType<IrPrinterExtension>().apply {
+    dumpRawIr = true
+    dumpComposeStyleIr = true
 }
 
 android {
@@ -13,7 +22,7 @@ android {
     compileSdk = 35
 
     defaultConfig {
-        minSdk = 24
+        minSdk = 19
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         consumerProguardFiles("consumer-rules.pro")

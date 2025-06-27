@@ -47,10 +47,43 @@ class MainActivity : ComponentActivity() {
                     TestCaseList(
                         modifier = Modifier.padding(innerPadding)
                     )
+                    TestReturnV1(false)
+                    TestReturnV1(true)
+                    TestReturnV2(false)
+                    TestReturnV2(true)
                 }
             }
         }
     }
+}
+@Composable
+fun TestReturnV1(a: Boolean): Int {
+    var count = getCount()
+    if (a) {
+        return count
+    }
+    return count + 1
+}
+
+@Composable
+fun TestReturnV2(a: Boolean) {
+    var count = getCount()
+    Empty()
+    if (a) {
+        Empty()
+        return
+    }
+    Empty()
+    return
+}
+
+@Composable
+fun Empty() {
+
+}
+
+fun getCount(): Int {
+    return 42
 }
 
 data class TestCase(

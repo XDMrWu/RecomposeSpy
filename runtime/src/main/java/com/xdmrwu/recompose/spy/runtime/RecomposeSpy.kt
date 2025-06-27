@@ -40,12 +40,17 @@ object RecomposeSpy {
 
     @NonSkippableComposable
     @Composable
-    fun RememberComposeInfo(dirties: Array<Int>,
+    fun RememberComposeInfo(fqName: String, dirties: Array<Int>,
                             paramNames: Array<String>,
                             unusedParams: Array<String>,
                             readStateMap: Map<String, Any?>,
                             readCompositionLocalMap: Map<String, Any?>
     ) {
+
+        val node = trackNodeStack.removeAt(trackNodeStack.size - 1)
+        assert(node.fqName == fqName) {
+            "Expected to be called in the same composable call as startComposableCall, but got $fqName instead of ${node.fqName}"
+        }
 
         val oldStates = remember { TrackValueHolder(readStateMap.toMap()) }
         val readStates = readStateMap.mapNotNull {
@@ -87,13 +92,13 @@ object RecomposeSpy {
                     0b001 -> RecomposeParamState(name, true, changed = false) // Same
                     0b010 -> RecomposeParamState(name, true, changed = true) // Different
                     0b011 -> RecomposeParamState(name, true, static = true) // Static
-                    0b000 -> RecomposeParamState(name, true, uncertain = true) // TODO default 参数 dirty会被重置为 uncertain
+                    // TODO default 参数 dirty会被重置为 uncertain, inline 的changed 也可能是透传下来的 uncertain
+                    0b000, 0b100 -> RecomposeParamState(name, true, uncertain = true)
                     else -> error("Unexpected value of slot: $valueOfSlot for param: $name")
                 }
             }
         }
 
-        val node = trackNodeStack.removeAt(trackNodeStack.size - 1)
         node.recomposeState = RecomposeState(
             paramStates,
             readStates,

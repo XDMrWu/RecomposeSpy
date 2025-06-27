@@ -3,22 +3,29 @@ package com.xdmrwu.recompose.spy
 import org.jetbrains.kotlin.backend.common.extensions.IrGenerationExtension
 import org.jetbrains.kotlin.backend.common.extensions.IrPluginContext
 import org.jetbrains.kotlin.backend.common.lower.DeclarationIrBuilder
+import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.IrStatement
 import org.jetbrains.kotlin.ir.builders.irCall
 import org.jetbrains.kotlin.ir.declarations.IrFunction
 import org.jetbrains.kotlin.ir.declarations.IrProperty
+import org.jetbrains.kotlin.ir.declarations.name
+import org.jetbrains.kotlin.ir.expressions.IrBlock
 import org.jetbrains.kotlin.ir.expressions.IrBlockBody
 import org.jetbrains.kotlin.ir.expressions.IrCall
 import org.jetbrains.kotlin.ir.expressions.IrExpression
+import org.jetbrains.kotlin.ir.expressions.IrReturn
+import org.jetbrains.kotlin.ir.expressions.IrStatementContainer
 import org.jetbrains.kotlin.ir.symbols.IrFunctionSymbol
 import org.jetbrains.kotlin.ir.types.classFqName
 import org.jetbrains.kotlin.ir.util.file
 import org.jetbrains.kotlin.ir.util.hasAnnotation
 import org.jetbrains.kotlin.ir.util.isFakeOverride
 import org.jetbrains.kotlin.ir.util.isPropertyAccessor
+import org.jetbrains.kotlin.ir.util.kotlinFqName
 import org.jetbrains.kotlin.ir.util.propertyIfAccessor
 import org.jetbrains.kotlin.ir.visitors.IrElementTransformerVoid
 import org.jetbrains.kotlin.ir.visitors.IrElementVisitorVoid
+import org.jetbrains.kotlin.ir.visitors.acceptChildrenVoid
 import org.jetbrains.kotlin.name.CallableId
 import org.jetbrains.kotlin.name.FqName
 import org.jetbrains.kotlin.name.Name
@@ -147,6 +154,60 @@ abstract class BaseExtension: IrGenerationExtension {
             return dispatchReceiver?.getPropertyName() ?: "UnknownStateProperty"
         }
         return null
+    }
+
+    fun IrFunction.addStatementBeforeReturn(statementGenerator: () -> List<IrStatement>) {
+        (body as? IrBlockBody) ?: error("Function body is not a block body, ${kotlinFqName.asString()}")
+        val irReturns = mutableListOf<Pair<IrReturn, IrStatementContainer>>()
+
+        val irBlockStack = mutableListOf<IrStatementContainer>()
+        irBlockStack.add(body as IrBlockBody)
+
+        acceptChildrenVoid(object : NestedFunctionAwareVisitor() {
+
+            override fun visitElement(element: IrElement) {
+                element.acceptChildrenVoid(this)
+            }
+
+            override fun visitBlock(expression: IrBlock) {
+                if (isNestedScope) {
+                    super.visitBlock(expression)
+                    return
+                }
+                irBlockStack.add(expression)
+                super.visitBlock(expression)
+                irBlockStack.remove(expression)
+            }
+
+            override fun visitReturn(expression: IrReturn) {
+                if (isNestedScope) {
+                    super.visitReturn(expression)
+                    return
+                }
+                val index = irBlockStack.last().statements.indexOf(expression)
+                if (index < 0) {
+                    error("Return expression not found in the current body stack")
+                }
+                irReturns.add(expression to irBlockStack.last())
+                super.visitReturn(expression)
+            }
+        })
+
+        irBlockStack.remove(body as IrBlockBody)
+
+        irReturns.forEach {
+            val irReturn = it.first
+            val body = it.second
+            val statements = body?.statements ?: return@forEach
+            statements.addAll(
+                statements.indexOf(irReturn),
+                statementGenerator()
+            )
+        }
+
+        if (irReturns.isEmpty()) {
+            (body as? IrBlockBody)?.statements?.addAll(statementGenerator())
+        }
     }
 }
 
