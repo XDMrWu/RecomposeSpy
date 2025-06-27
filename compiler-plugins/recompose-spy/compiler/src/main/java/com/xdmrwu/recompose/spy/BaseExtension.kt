@@ -35,7 +35,7 @@ abstract class BaseExtension: IrGenerationExtension {
         const val NON_RESTARTABLE_COMPOSABLE_FQ_NAME = "androidx.compose.runtime.NonRestartableComposable"
         const val DIRTIES_VAR_NAME = "${"$"}dirties"
         const val RECOMPOSE_SPY_PACKAGE = "com.xdmrwu.recompose.spy.runtime"
-        const val RECOMPOSE_SPY_CLASS_NAME = "RecomposeSpyTracker"
+        const val RECOMPOSE_SPY_CLASS_NAME = "RecomposeSpy"
         const val RECOMPOSE_SPY_START_FUN_NAME = "startComposableCall"
         const val RECOMPOSE_SPY_END_FUN_NAME = "RememberComposeInfo"
         const val RECOMPOSE_SPY_GET_EMPTY_DIRTIES_FUN_NAME = "getEmptyDirties"

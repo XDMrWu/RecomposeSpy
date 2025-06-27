@@ -33,6 +33,7 @@ import androidx.compose.ui.unit.dp
 import com.xdmrwu.recompose.spy.demo.case.RecomposeDebugTest
 import com.xdmrwu.recompose.spy.demo.case.compiler.NonRestartableTest
 import com.xdmrwu.recompose.spy.demo.case.RememberTestCase
+import com.xdmrwu.recompose.spy.demo.case.TestIDEPlugin
 import com.xdmrwu.recompose.spy.demo.case.compiler.NonSkippableTest
 import com.xdmrwu.recompose.spy.demo.theme.ComposeDebugToolTheme
 
@@ -69,6 +70,9 @@ val testCases = listOf(
     },
     TestCase("Recompose Debug Test") {
         RecomposeDebugTest()
+    },
+    TestCase("Test IDE Plugin") {
+         TestIDEPlugin()
     }
 )
 

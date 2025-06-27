@@ -28,6 +28,7 @@ fun RecomposeDebugTest() {
 //    ))
 
     Column {
+        // TODO 这种不会识别到 lambda 被 inline，RecomposeSpy 分析有问题
         Button(onClick = {
             testState.value += 1
         }) {
@@ -74,7 +75,7 @@ private fun ParamTest(p1: Int, p2: Int, p3: Int, p4: Int, p5: Int, p6: Int, p7: 
 }
 
 @Composable
-inline fun ComposeLambdaTest(content: @Composable (name: String) -> Unit) {
+fun ComposeLambdaTest(content: @Composable (name: String) -> Unit) {
     content("")
     Text(
         text = "Lambda Test",

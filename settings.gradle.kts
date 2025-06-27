@@ -28,11 +28,14 @@ dependencyResolutionManagement {
     }
 }
 
+rootProject.name = "RecomposeSpy"
+
 include(":compiler-plugins:recompose-spy:compiler")
 include(":compiler-plugins:recompose-spy:gradle-plugin")
 
 include(":compiler-plugins:ir-printer:compiler")
 include(":compiler-plugins:ir-printer:gradle-plugin")
 
-rootProject.name = "RecomposeSpy"
+include(":runtime")
+
 include(":app")

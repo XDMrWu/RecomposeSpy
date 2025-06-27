@@ -60,6 +60,7 @@ class RecomposeSpyExtension: BaseExtension() {
                 // 其中包含一个 lambda 作为参数，这个 lambda 会变成一个 IrFunctionExpression，其内部是一个匿名的 IrFunction。
                 // Box(content: @Composable () -> Unit) {
                 // @Composable 不是参数本身的注解，而是参数类型的 FunctionType 的 invoke() 方法带有 @Composable。
+                val function = expression.symbol.owner
                 expression.valueArguments.filterIsInstance<IrFunctionExpression>().forEach {
                     val type = it.type
                     val clazz = type.classOrNull?.owner ?: return@forEach
@@ -67,7 +68,8 @@ class RecomposeSpyExtension: BaseExtension() {
                         it.name.asString() == "invoke"
                     }?.isComposable() ?: false
                     if (isComposableLambda) {
-                        insertCalls(pluginContext, it.function)
+                        // 如果是一个 inline 方法 call 的 Composable lambda 参数，这个参数不会有 changed
+                        insertCalls(pluginContext, it.function, function.isInline)
                     }
                 }
                 return super.visitCall(expression)
@@ -75,18 +77,20 @@ class RecomposeSpyExtension: BaseExtension() {
         })
     }
 
-    private fun insertCalls(pluginContext: IrPluginContext, irFunction: IrFunction) {
+    private fun insertCalls(pluginContext: IrPluginContext, irFunction: IrFunction,
+                            isInlineLambdaParam: Boolean = false) {
         val irBuilder = DeclarationIrBuilder(pluginContext, irFunction.symbol)
-        insertStartCall(pluginContext, irBuilder, irFunction)
+        insertStartCall(pluginContext, irBuilder, irFunction, isInlineLambdaParam)
         insertEndCall(pluginContext, irBuilder, irFunction)
     }
 
-    private fun insertStartCall(pluginContext: IrPluginContext, irBuilder: DeclarationIrBuilder, declaration: IrFunction) {
+    private fun insertStartCall(pluginContext: IrPluginContext, irBuilder: DeclarationIrBuilder,
+                                declaration: IrFunction, isInlineLambdaParam: Boolean) {
         val fqName = irBuilder.irString(declaration.kotlinFqName.asString())
         val fileName = irBuilder.irString(declaration.file.fileEntry.name)
         val startLine = irBuilder.irInt(declaration.getStartLine())
         val endLine = irBuilder.irInt(declaration.getEndLine())
-        val inline = irBuilder.irBoolean(declaration.isInline)
+        val inline = irBuilder.irBoolean(isInlineLambdaParam || declaration.isInline)
         val nonSkippable = irBuilder.irBoolean(declaration.nonSkippable())
         val nonRestartable = irBuilder.irBoolean(declaration.nonRestartable())
 
