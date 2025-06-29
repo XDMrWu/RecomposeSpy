@@ -1,14 +1,13 @@
-import com.xdmrwu.ir.printer.IrPrinterExtension
+import com.xdmrwu.recompose.spy.RecomposeSpyExtension
 
 plugins {
     alias(libs.plugins.android.application)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
     id("io.github.xdmrwu.recompose.spy") // 顺序
-    id("io.github.xdmrwu.ir.printer") // 顺序
 }
 
-extensions.getByType<IrPrinterExtension>().apply {
+extensions.getByType<RecomposeSpyExtension>().apply {
     dumpRawIr = true
     dumpComposeStyleIr = true
 }

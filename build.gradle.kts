@@ -16,7 +16,6 @@ buildscript {
         }
     }
     dependencies {
-        classpath("io.github.xdmrwu:ir-printer-gradle-plugin:0.0.1")
         classpath("io.github.xdmrwu:recompose-spy-gradle-plugin:0.0.1")
     }
 }
