@@ -40,11 +40,14 @@ object RecomposeSpy {
 
     @NonSkippableComposable
     @Composable
-    fun RememberComposeInfo(fqName: String, dirties: Array<Int>,
-                            paramNames: Array<String>,
-                            unusedParams: Array<String>,
-                            readStateMap: Map<String, Any?>,
-                            readCompositionLocalMap: Map<String, Any?>
+    fun RememberComposeInfo(
+        fqName: String,
+        dirties: Array<Int>,
+        paramNames: Array<String>,
+        unusedParams: Array<String>,
+        defaultBitMasks: Array<Int>,
+        readStateMap: Map<String, Any?>,
+        readCompositionLocalMap: Map<String, Any?>
     ) {
 
         val node = trackNodeStack.removeAt(trackNodeStack.size - 1)
@@ -85,6 +88,9 @@ object RecomposeSpy {
         val paramStates = paramNames.mapIndexed { index, name ->
             if (unusedParams.contains(name)) {
                 RecomposeParamState(name, false)
+            } else if (isDefaultValue(index, defaultBitMasks)) {
+                // 默认参数
+                RecomposeParamState(name, true, uncertain = true, useDefaultValue = true)
             } else {
                 val dirty = dirties[index / SLOTS_PER_INT]
                 val valueOfSlot = dirty shr (index % SLOTS_PER_INT * BITS_PER_SLOT + 1) and 0b111
@@ -92,7 +98,7 @@ object RecomposeSpy {
                     0b001 -> RecomposeParamState(name, true, changed = false) // Same
                     0b010 -> RecomposeParamState(name, true, changed = true) // Different
                     0b011 -> RecomposeParamState(name, true, static = true) // Static
-                    // TODO default 参数 dirty会被重置为 uncertain, inline 的changed 也可能是透传下来的 uncertain
+//                     TODO default 参数 dirty会被重置为 uncertain, inline 的changed 也可能是透传下来的 uncertain,不可skip 的也可能
                     0b000, 0b100 -> RecomposeParamState(name, true, uncertain = true)
                     else -> error("Unexpected value of slot: $valueOfSlot for param: $name")
                 }
@@ -114,6 +120,16 @@ object RecomposeSpy {
             })
         }
     }
+
+    private fun isDefaultValue(index: Int, defaultBitMasks: Array<Int>): Boolean {
+        val slot = index / 32
+        val offset = index % 32
+        if (defaultBitMasks.size < slot + 1) {
+            return false
+        }
+        return defaultBitMasks[slot] and (1 shl offset) != 0
+    }
+
 }
 
 /**

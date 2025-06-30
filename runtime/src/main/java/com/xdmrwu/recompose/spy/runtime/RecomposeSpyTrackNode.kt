@@ -53,6 +53,7 @@ data class RecomposeParamState(
     val static: Boolean = false,
     val changed: Boolean = false,
     val uncertain: Boolean = false, // TODO default 参数 dirty会被重置为 uncertain
+    val useDefaultValue: Boolean = false,
 )
 
 data class RecomposeReadState(

@@ -36,6 +36,7 @@ class RecomposeSpyAfterComposeExtension: BaseExtension() {
 
                 val irBuilder = DeclarationIrBuilder(pluginContext, declaration.symbol)
                 replaceDirties(pluginContext, irBuilder, declaration)
+                replaceDefaultBitMasks(pluginContext, irBuilder, declaration)
 
                 return super.visitFunction(declaration)
             }
@@ -131,5 +132,46 @@ class RecomposeSpyAfterComposeExtension: BaseExtension() {
             }
             it.initializer = arrayOfCall
         }
+    }
+
+    private fun replaceDefaultBitMasks(pluginContext: IrPluginContext, irBuilder: DeclarationIrBuilder, declaration: IrFunction) {
+        val variable = findDefaultBitMasksVariable(pluginContext, irBuilder, declaration) ?: return
+        variable.initializer = irCall(pluginContext, irBuilder, "kotlin", null, "arrayOf") {
+            it.owner.valueParameters.any { it.isVararg }
+        }.apply {
+            putTypeArgument(0, pluginContext.irBuiltIns.intType)
+            putValueArgument(0, irBuilder.irVararg(pluginContext.irBuiltIns.intType, declaration.valueParameters.filter {
+                it.name.asString().startsWith("${"$"}default")
+            }.map {
+                irBuilder.irGet(it)
+            }))
+        }
+
+    }
+
+    private fun findDefaultBitMasksVariable(pluginContext: IrPluginContext, irBuilder: DeclarationIrBuilder, declaration: IrFunction): IrVariable? {
+
+        var variable: IrVariable? = null
+
+        declaration.body?.acceptChildrenVoid(object : NestedFunctionAwareVisitor() {
+
+            override fun visitElement(element: IrElement) {
+                element.acceptChildrenVoid(this)
+            }
+
+            override fun visitVariable(declaration: IrVariable) {
+                if (isNestedScope) {
+                    // 不处理嵌套方法，比如 lambda
+                    return super.visitVariable(declaration)
+                }
+                val variableName = declaration.name.asString()
+                if (variableName == DEFAULT_BIT_MASKS_VAR_NAME) {
+                    variable = declaration
+                }
+                super.visitVariable(declaration)
+            }
+        })
+
+        return variable
     }
 }

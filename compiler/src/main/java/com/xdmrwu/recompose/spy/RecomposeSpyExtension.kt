@@ -122,6 +122,7 @@ class RecomposeSpyExtension: BaseExtension() {
 
         val paramNames = getParamNames(pluginContext, irBuilder, declaration)
         val unusedParamNames = getUnusedParamNames(pluginContext, irBuilder, declaration)
+        val defaultBitMasks = getDefaultBitMasks(pluginContext, irBuilder, declaration)
         val readStates = getReadStates(pluginContext, irBuilder, declaration)
         val readCompositionLocals = getReadCompositionLocals(pluginContext, irBuilder, declaration)
 
@@ -140,8 +141,9 @@ class RecomposeSpyExtension: BaseExtension() {
                 putValueArgument(1, irBuilder.irGet(dirties))
                 putValueArgument(2, irBuilder.irGet(paramNames))
                 putValueArgument(3, irBuilder.irGet(unusedParamNames))
-                putValueArgument(4, irBuilder.irGet(readStates))
-                putValueArgument(5, irBuilder.irGet(readCompositionLocals))
+                putValueArgument(4, irBuilder.irGet(defaultBitMasks))
+                putValueArgument(5, irBuilder.irGet(readStates))
+                putValueArgument(6, irBuilder.irGet(readCompositionLocals))
             }
             listOf(dirties, endCall)
         }
@@ -214,6 +216,24 @@ class RecomposeSpyExtension: BaseExtension() {
         return variable
     }
 
+    // 获取方法参数的默认值掩码，这里仅创建变量，在 Compose Compiler 处理后再获取 $default
+    private fun getDefaultBitMasks(pluginContext: IrPluginContext, irBuilder: DeclarationIrBuilder, declaration: IrFunction): IrVariable {
+        val arrayOfCall = irCall(pluginContext, irBuilder, "kotlin", null, "arrayOf") {
+            it.owner.valueParameters.any { it.isVararg }
+        }.apply {
+            putTypeArgument(0, pluginContext.irBuiltIns.intType)
+        }
+
+        val variable = irBuilder.scope.createTmpVariable(
+            pluginContext.irBuiltIns.arrayClass.owner.defaultType,
+            DEFAULT_BIT_MASKS_VAR_NAME,
+            initializer = arrayOfCall
+        )
+        (declaration.body as IrBlockBody).statements.add(0, variable)
+
+        return variable
+    }
+
     // 获取当前方法中对 State.getValue 的调用
     private fun getReadStates(pluginContext: IrPluginContext, irBuilder: DeclarationIrBuilder, function: IrFunction): IrVariable {
 
@@ -226,7 +246,7 @@ class RecomposeSpyExtension: BaseExtension() {
 
         val readStateVariable = irBuilder.scope.createTmpVariable(
             pluginContext.irBuiltIns.mutableMapClass.owner.defaultType,
-            "readState",
+            READ_STATE_VAR_NAME,
             initializer = mapOfCall
         )
 
@@ -267,7 +287,7 @@ class RecomposeSpyExtension: BaseExtension() {
 
         val readCompositionLocalsVariable = irBuilder.scope.createTmpVariable(
             pluginContext.irBuiltIns.mutableMapClass.owner.defaultType,
-            "readCompositionLocals",
+            READ_COMPOSITION_LOCALS_VAR_NAME,
             initializer = mapOfCall
         )
 
