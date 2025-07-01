@@ -126,7 +126,7 @@ class RecomposeSpyExtension: BaseExtension() {
         val readStates = getReadStates(pluginContext, irBuilder, declaration)
         val readCompositionLocals = getReadCompositionLocals(pluginContext, irBuilder, declaration)
 
-        declaration.addStatementBeforeReturn {
+        declaration.addStatementBeforeReturn(irBuilder) {
             val dirties = getDirties(pluginContext, irBuilder, declaration)
 
             val endCall = irCall(pluginContext, irBuilder, RECOMPOSE_SPY_PACKAGE, RECOMPOSE_SPY_CLASS_NAME, RECOMPOSE_SPY_END_FUN_NAME).apply {
@@ -172,7 +172,7 @@ class RecomposeSpyExtension: BaseExtension() {
 
         val variable = irBuilder.scope.createTmpVariable(
             pluginContext.irBuiltIns.arrayClass.owner.defaultType,
-            "paramNames",
+            PARAM_NAMES_VAR_NAME,
             initializer = arrayOfCall
         )
         (declaration.body as IrBlockBody).statements.add(0, variable)
@@ -208,7 +208,7 @@ class RecomposeSpyExtension: BaseExtension() {
 
         val variable = irBuilder.scope.createTmpVariable(
             pluginContext.irBuiltIns.arrayClass.owner.defaultType,
-            "unusedParamNames",
+            UNUSED_PARAM_NAMES_VAR_NAME,
             initializer = arrayOfCall
         )
         (declaration.body as IrBlockBody).statements.add(0, variable)

@@ -5,7 +5,10 @@ import org.jetbrains.kotlin.backend.common.extensions.IrPluginContext
 import org.jetbrains.kotlin.backend.common.lower.DeclarationIrBuilder
 import org.jetbrains.kotlin.ir.IrElement
 import org.jetbrains.kotlin.ir.IrStatement
+import org.jetbrains.kotlin.ir.builders.createTmpVariable
 import org.jetbrains.kotlin.ir.builders.irCall
+import org.jetbrains.kotlin.ir.builders.irGet
+import org.jetbrains.kotlin.ir.builders.irReturn
 import org.jetbrains.kotlin.ir.declarations.IrFunction
 import org.jetbrains.kotlin.ir.declarations.IrProperty
 import org.jetbrains.kotlin.ir.declarations.name
@@ -42,8 +45,11 @@ abstract class BaseExtension: IrGenerationExtension {
         const val NON_RESTARTABLE_COMPOSABLE_FQ_NAME = "androidx.compose.runtime.NonRestartableComposable"
         const val DIRTIES_VAR_NAME = "${"$"}dirties"
         const val DEFAULT_BIT_MASKS_VAR_NAME = "${"$"}defaultBitMasks"
+        const val PARAM_NAMES_VAR_NAME = "${"$"}paramNames"
+        const val UNUSED_PARAM_NAMES_VAR_NAME = "${"$"}unusedParamNames"
         const val READ_STATE_VAR_NAME = "${"$"}readState"
         const val READ_COMPOSITION_LOCALS_VAR_NAME = "${"$"}readCompositionLocals"
+        const val RETURN_VAR_NAME = "${"$"}returnVar"
         const val RECOMPOSE_SPY_PACKAGE = "com.xdmrwu.recompose.spy.runtime"
         const val RECOMPOSE_SPY_CLASS_NAME = "RecomposeSpy"
         const val RECOMPOSE_SPY_START_FUN_NAME = "startComposableCall"
@@ -159,7 +165,7 @@ abstract class BaseExtension: IrGenerationExtension {
         return null
     }
 
-    fun IrFunction.addStatementBeforeReturn(statementGenerator: () -> List<IrStatement>) {
+    fun IrFunction.addStatementBeforeReturn(irBuilder: DeclarationIrBuilder, statementGenerator: () -> List<IrStatement>) {
         (body as? IrBlockBody) ?: error("Function body is not a block body, ${kotlinFqName.asString()}")
         val irReturns = mutableListOf<Pair<IrReturn, IrStatementContainer>>()
 
@@ -202,10 +208,20 @@ abstract class BaseExtension: IrGenerationExtension {
             val irReturn = it.first
             val body = it.second
             val statements = body?.statements ?: return@forEach
-            statements.addAll(
-                statements.indexOf(irReturn),
-                statementGenerator()
+
+            val returnVar = irBuilder.scope.createTmpVariable(
+                irReturn.value.type,
+                RETURN_VAR_NAME,
+                initializer = irReturn.value
             )
+            val newIrReturn = irBuilder.irReturn(
+                irBuilder.irGet(returnVar)
+            )
+
+            val index = statements.indexOf(irReturn)
+
+            statements.remove(irReturn)
+            statements.addAll(index, listOf(returnVar, *statementGenerator().toTypedArray(), newIrReturn))
         }
 
         if (irReturns.isEmpty()) {
