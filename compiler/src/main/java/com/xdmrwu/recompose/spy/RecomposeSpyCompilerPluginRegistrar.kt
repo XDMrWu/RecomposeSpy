@@ -12,8 +12,8 @@ import org.jetbrains.kotlin.config.CompilerConfiguration
 @AutoService(CompilerPluginRegistrar::class)
 class RecomposeSpyCompilerPluginRegistrar : CompilerPluginRegistrar() {
 
-    private val extension = RecomposeSpyExtension()
-    private val afterComposeExtension = RecomposeSpyAfterComposeExtension()
+    private val extension = RecomposeSpyIrGenerationExtension()
+    private val afterComposeExtension = RecomposeSpyAfterComposeIrGenerationExtension()
     private val irPrinterExtension = IrPrinterExtension()
 
     override val supportsK2: Boolean = true
@@ -22,8 +22,10 @@ class RecomposeSpyCompilerPluginRegistrar : CompilerPluginRegistrar() {
     override fun ExtensionStorage.registerExtensions(configuration: CompilerConfiguration) {
         val extensionsList = getExtensionsList()
         // 插入到最前面，保证在 Compose Compiler 前执行
-        extensionsList.add(0, extension)
-        extensionsList.add(afterComposeExtension)
+        if (RecomposeSpyCommandLineOption.EnableSpy.getValue()) {
+            extensionsList.add(0, extension)
+            extensionsList.add(afterComposeExtension)
+        }
         extensionsList.add(irPrinterExtension)
     }
 

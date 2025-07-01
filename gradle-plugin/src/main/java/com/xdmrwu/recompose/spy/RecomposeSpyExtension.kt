@@ -6,6 +6,7 @@ package com.xdmrwu.recompose.spy
  * @Description:
  */
 open class RecomposeSpyExtension {
+    var enableSpy: Boolean = true
     var dumpRawIr: Boolean = false
     var dumpComposeStyleIr: Boolean = false
 }

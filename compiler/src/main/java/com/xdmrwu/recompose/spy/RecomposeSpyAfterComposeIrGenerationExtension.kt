@@ -25,7 +25,7 @@ import org.jetbrains.kotlin.name.Name
  * @Date: 2025/6/19 22:13
  * @Description:
  */
-class RecomposeSpyAfterComposeExtension: BaseExtension() {
+class RecomposeSpyAfterComposeIrGenerationExtension: BaseIrGenerationExtension() {
     override fun generate(moduleFragment: IrModuleFragment, pluginContext: IrPluginContext) {
         moduleFragment.transformChildrenVoid(object : IrElementTransformerVoid() {
             // 经过 ComposeCompiler 处理，不需要单独关注 lambda，只需要关注 IrFunction

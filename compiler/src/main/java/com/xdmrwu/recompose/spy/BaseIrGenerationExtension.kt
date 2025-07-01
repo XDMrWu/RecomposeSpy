@@ -11,7 +11,6 @@ import org.jetbrains.kotlin.ir.builders.irGet
 import org.jetbrains.kotlin.ir.builders.irReturn
 import org.jetbrains.kotlin.ir.declarations.IrFunction
 import org.jetbrains.kotlin.ir.declarations.IrProperty
-import org.jetbrains.kotlin.ir.declarations.name
 import org.jetbrains.kotlin.ir.expressions.IrBlock
 import org.jetbrains.kotlin.ir.expressions.IrBlockBody
 import org.jetbrains.kotlin.ir.expressions.IrCall
@@ -38,7 +37,7 @@ import org.jetbrains.kotlin.name.Name
  * @Date: 2025/6/19 22:21
  * @Description:
  */
-abstract class BaseExtension: IrGenerationExtension {
+abstract class BaseIrGenerationExtension: IrGenerationExtension {
     companion object {
         const val COMPOSABLE_FQ_NAME = "androidx.compose.runtime.Composable"
         const val NON_SKIPPABLE_COMPOSABLE_FQ_NAME = "androidx.compose.runtime.NonSkippableComposable"

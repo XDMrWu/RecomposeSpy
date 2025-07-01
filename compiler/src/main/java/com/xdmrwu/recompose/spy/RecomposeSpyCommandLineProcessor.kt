@@ -17,6 +17,7 @@ import org.jetbrains.kotlin.config.CompilerConfiguration
 class RecomposeSpyCommandLineProcessor: CommandLineProcessor {
     override val pluginId = "io.github.xdmrwu.recompose.spy"
     override val pluginOptions: Collection<AbstractCliOption> = listOf(
+        RecomposeSpyCommandLineOption.EnableSpy,
         RecomposeSpyCommandLineOption.DumpRawIr,
         RecomposeSpyCommandLineOption.DumpComposeStyleIr,
         RecomposeSpyCommandLineOption.BuildDir
@@ -37,6 +38,27 @@ sealed class RecomposeSpyCommandLineOption<T>(
 ) : AbstractCliOption {
     abstract fun processOption(option: AbstractCliOption, value: String, configuration: CompilerConfiguration)
     abstract fun getValue(): T
+
+    object EnableSpy : RecomposeSpyCommandLineOption<Boolean>(
+        optionName = "enableSpy",
+        valueDescription = "true|false",
+        description = "Enable recompose spy.",
+        required = false,
+        allowMultipleOccurrences = false
+    ) {
+
+        private var value: Boolean = true
+
+        override fun processOption(option: AbstractCliOption, value: String, configuration: CompilerConfiguration) {
+            if (option.optionName == optionName) {
+                this.value = value.toBoolean()
+            }
+        }
+
+        override fun getValue(): Boolean {
+            return value
+        }
+    }
 
     object DumpRawIr : RecomposeSpyCommandLineOption<Boolean>(
         optionName = "dumpRawIr",

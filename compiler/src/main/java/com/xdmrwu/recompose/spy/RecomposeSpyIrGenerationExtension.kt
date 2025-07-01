@@ -40,7 +40,7 @@ import org.jetbrains.kotlin.name.Name
  * @Date: 2025/6/16 23:27
  * @Description:
  */
-class RecomposeSpyExtension: BaseExtension() {
+class RecomposeSpyIrGenerationExtension: BaseIrGenerationExtension() {
 
     override fun generate(moduleFragment: IrModuleFragment, pluginContext: IrPluginContext) {
         moduleFragment.transformChildrenVoid(object : IrElementTransformerVoid() {

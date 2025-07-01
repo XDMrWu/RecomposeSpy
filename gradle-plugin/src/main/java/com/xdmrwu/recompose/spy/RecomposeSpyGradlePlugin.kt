@@ -37,6 +37,7 @@ class RecomposeSpyGradlePlugin : KotlinCompilerPluginSupportPlugin {
         val extension = project.extensions.getByType(RecomposeSpyExtension::class.java)
 
         val options = ArrayList<SubpluginOption>()
+        options += SubpluginOption("enableSpy", "${extension.enableSpy}")
         options += SubpluginOption("dumpRawIr", "${extension.dumpRawIr}")
         options += SubpluginOption("dumpComposeStyleIr", "${extension.dumpComposeStyleIr}")
         options += SubpluginOption("buildDir", project.buildDir.absolutePath)
