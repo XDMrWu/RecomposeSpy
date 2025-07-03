@@ -1,12 +1,14 @@
 package com.xdmrwu.recompose.spy.runtime.printer
 
 import android.util.Log
+import com.xdmrwu.recompose.spy.runtime.RecomposeSpyTrackNode
 import kotlinx.coroutines.CoroutineScope
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.SupervisorJob
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableSharedFlow
 import kotlinx.coroutines.launch
+import kotlinx.serialization.json.Json
 import java.io.PrintWriter
 import java.net.Socket
 import kotlin.coroutines.CoroutineContext
@@ -28,6 +30,8 @@ class IdePluginPrinter: IRecomposeSpyPrinter, CoroutineScope {
 
     private val taskFlow = MutableSharedFlow<suspend () -> Unit>(extraBufferCapacity = Int.MAX_VALUE)
 
+    private val json = Json { ignoreUnknownKeys = true }
+
     init {
         launch {
             taskFlow.collect {
@@ -40,7 +44,15 @@ class IdePluginPrinter: IRecomposeSpyPrinter, CoroutineScope {
         }
     }
 
-    override fun printMessage(type: Int, message: String) {
+    override fun printMessage(message: String) {
+        sendToIde(message)
+    }
+
+    override fun printTrackNode(node: RecomposeSpyTrackNode) {
+        sendToIde(json.encodeToString<RecomposeSpyTrackNode>(RecomposeSpyTrackNode.serializer(), node))
+    }
+
+    private fun sendToIde(message: String) {
         taskFlow.tryEmit {
             var socket: Socket? = null
             runCatching {

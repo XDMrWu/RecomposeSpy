@@ -4,6 +4,7 @@ plugins {
     alias(libs.plugins.android.library)
     alias(libs.plugins.kotlin.android)
     alias(libs.plugins.kotlin.compose)
+    alias(libs.plugins.kotlinx.serialization)
     `maven-publish`
     id("com.vanniktech.maven.publish") version "0.30.0"
 }
@@ -40,6 +41,7 @@ android {
 dependencies {
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.runtime)
+    implementation(libs.kotlinx.serialization.json)
 }
 
 mavenPublishing {

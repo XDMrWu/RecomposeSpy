@@ -72,7 +72,7 @@ object RecomposeSpy {
             }
             val oldValue = oldStates[key]
             // TODO 比较方式不一定准确
-            RecomposeReadState(key, oldValue, newValue, newValue != oldValue)
+            RecomposeReadState(key, oldValue?.toString(), newValue?.toString(), newValue != oldValue)
         }
         // 重新创建一个 map，避免数自动同步
         oldStates.value = readStateMap.toMap()
@@ -87,7 +87,7 @@ object RecomposeSpy {
             }
             val oldValue = oldLocals[key]
             // TODO 比较方式不一定准确
-            RecomposeReadState(key, oldValue, newValue, newValue != oldValue)
+            RecomposeReadState(key, oldValue?.toString(), newValue?.toString(), newValue != oldValue)
         }
         oldLocals.value = readCompositionLocalMap
 
@@ -121,11 +121,7 @@ object RecomposeSpy {
         )
 
         if (trackNodeStack.isEmpty()) {
-            // 结束追踪, TODO
-            val msg = node.generateSpyInfo().lines().joinToString("\n") {
-                "[RecomposeSpy] $it"
-            }
-            printers.forEach { it.printMessage(0, msg) }
+            printers.forEach { it.printTrackNode(node) }
         }
     }
 

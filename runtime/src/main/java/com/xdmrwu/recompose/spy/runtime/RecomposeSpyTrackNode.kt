@@ -1,10 +1,13 @@
 package com.xdmrwu.recompose.spy.runtime
 
+import kotlinx.serialization.Serializable
+
 /**
  * @Author: wulinpeng
  * @Date: 2025/6/26 21:08
  * @Description:
  */
+@Serializable
 class RecomposeSpyTrackNode(
     val fqName: String,
     val file: String,
@@ -41,12 +44,13 @@ class RecomposeSpyTrackNode(
         return split(split).last()
     }
 }
-
+@Serializable
 data class RecomposeState(val paramStates: List<RecomposeParamState>,
                           val readStates: List<RecomposeReadState>,
                           val readCompositionLocals: List<RecomposeReadState>,
                           val forceRecompose: Boolean = false)
 
+@Serializable
 data class RecomposeParamState(
     val name: String,
     val used: Boolean,
@@ -56,9 +60,10 @@ data class RecomposeParamState(
     val useDefaultValue: Boolean = false,
 )
 
+@Serializable
 data class RecomposeReadState(
     val name: String,
-    val oldValue: Any?,
-    val newValue: Any?,
+    val oldValue: String?,
+    val newValue: String?,
     val changed: Boolean
 )
