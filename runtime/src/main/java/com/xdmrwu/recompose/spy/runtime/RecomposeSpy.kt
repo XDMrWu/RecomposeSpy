@@ -3,6 +3,8 @@ package com.xdmrwu.recompose.spy.runtime
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.NonSkippableComposable
 import androidx.compose.runtime.remember
+import com.xdmrwu.recompose.spy.runtime.printer.IdePluginPrinter
+import com.xdmrwu.recompose.spy.runtime.printer.LogPrinter
 
 /**
  * @Author: wulinpeng
@@ -25,8 +27,13 @@ private class TrackValueHolder(var value: Map<String, Any?>) {
 
 object RecomposeSpy {
 
-    private val trackNodeStack = mutableListOf<RecomposeSpyTrackNode>()
     // TODO 假设全局只有一个 Composition
+    private val trackNodeStack = mutableListOf<RecomposeSpyTrackNode>()
+
+    private val printers = listOf(
+        LogPrinter(),
+        IdePluginPrinter()
+    )
 
     fun startComposableCall(fqName: String, file: String, startLine: Int, endLine: Int,
                             inline: Boolean, hasReturnType: Boolean = false, nonSkippable: Boolean, nonRestartable: Boolean) {
@@ -115,9 +122,10 @@ object RecomposeSpy {
 
         if (trackNodeStack.isEmpty()) {
             // 结束追踪, TODO
-            println(node.generateSpyInfo().lines().joinToString("\n") {
+            val msg = node.generateSpyInfo().lines().joinToString("\n") {
                 "[RecomposeSpy] $it"
-            })
+            }
+            printers.forEach { it.printMessage(0, msg) }
         }
     }
 

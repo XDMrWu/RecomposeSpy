@@ -30,6 +30,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import com.xdmrwu.recompose.spy.demo.case.LazyListTestCase
 import com.xdmrwu.recompose.spy.demo.case.RecomposeDebugTest
 import com.xdmrwu.recompose.spy.demo.case.compiler.NonRestartableTest
 import com.xdmrwu.recompose.spy.demo.case.RememberTestCase
@@ -111,6 +112,9 @@ val testCases = listOf(
     },
     TestCase("Compiler Default Test") {
         DefaultTestCase()
+    },
+    TestCase("LazyListTestCase") {
+        LazyListTestCase()
     }
 )
 

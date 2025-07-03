@@ -8,6 +8,7 @@ plugins {
 }
 
 extensions.getByType<RecomposeSpyExtension>().apply {
+    enableSpy = true
     dumpRawIr = true
     dumpComposeStyleIr = true
 }
