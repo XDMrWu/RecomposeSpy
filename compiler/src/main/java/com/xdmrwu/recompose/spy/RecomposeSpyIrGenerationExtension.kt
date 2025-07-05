@@ -50,7 +50,7 @@ class RecomposeSpyIrGenerationExtension: BaseIrGenerationExtension() {
                     return super.visitFunction(declaration)
                 }
 
-                insertCalls(pluginContext, declaration)
+                insertCalls(pluginContext, declaration, false, declaration.isInline)
 
                 return super.visitFunction(declaration)
             }
@@ -64,6 +64,8 @@ class RecomposeSpyIrGenerationExtension: BaseIrGenerationExtension() {
                 // TODO IrInlineReferenceLocator.kt isInlineFunctionCall
                 val function = expression.symbol.owner
                 expression.valueArguments.filterIsInstance<IrFunctionExpression>().forEach {
+                    val paramIndex = expression.valueArguments.indexOf(it)
+                    val isNoInline = function.parameters[paramIndex].isNoinline
                     val type = it.type
                     val clazz = type.classOrNull?.owner ?: return@forEach
                     val isComposableLambda = clazz.functions.firstOrNull {
@@ -71,7 +73,7 @@ class RecomposeSpyIrGenerationExtension: BaseIrGenerationExtension() {
                     }?.isComposable() ?: false
                     if (isComposableLambda) {
                         // 如果是一个 inline 方法 call 的 Composable lambda 参数，这个参数不会有 changed
-                        insertCalls(pluginContext, it.function, function.isInline)
+                        insertCalls(pluginContext, it.function, true, function.isInline && !isNoInline)
                     }
                 }
                 return super.visitCall(expression)
@@ -79,20 +81,20 @@ class RecomposeSpyIrGenerationExtension: BaseIrGenerationExtension() {
         })
     }
 
-    private fun insertCalls(pluginContext: IrPluginContext, irFunction: IrFunction,
-                            isInlineLambdaParam: Boolean = false) {
+    private fun insertCalls(pluginContext: IrPluginContext, irFunction: IrFunction, isLambda: Boolean, inline: Boolean) {
         val irBuilder = DeclarationIrBuilder(pluginContext, irFunction.symbol)
-        insertStartCall(pluginContext, irBuilder, irFunction, isInlineLambdaParam)
+        insertStartCall(pluginContext, irBuilder, irFunction, isLambda, inline)
         insertEndCall(pluginContext, irBuilder, irFunction)
     }
 
     private fun insertStartCall(pluginContext: IrPluginContext, irBuilder: DeclarationIrBuilder,
-                                declaration: IrFunction, isInlineLambdaParam: Boolean) {
+                                declaration: IrFunction, isLambda: Boolean, inline: Boolean) {
         val fqName = irBuilder.irString(declaration.kotlinFqName.asString())
         val fileName = irBuilder.irString(declaration.file.fileEntry.name)
         val startLine = irBuilder.irInt(declaration.getStartLine())
         val endLine = irBuilder.irInt(declaration.getEndLine())
-        val inline = irBuilder.irBoolean(isInlineLambdaParam || declaration.isInline)
+        val isLambda = irBuilder.irBoolean(isLambda)
+        val inline = irBuilder.irBoolean(inline)
         val hasReturnType = irBuilder.irBoolean(!declaration.returnType.isUnit())
         val nonSkippable = irBuilder.irBoolean(declaration.nonSkippable())
         val nonRestartable = irBuilder.irBoolean(declaration.nonRestartable())
@@ -109,10 +111,11 @@ class RecomposeSpyIrGenerationExtension: BaseIrGenerationExtension() {
             putValueArgument(1, fileName)
             putValueArgument(2, startLine)
             putValueArgument(3, endLine)
-            putValueArgument(4, inline)
-            putValueArgument(5, hasReturnType)
-            putValueArgument(6, nonSkippable)
-            putValueArgument(7, nonRestartable)
+            putValueArgument(4, isLambda)
+            putValueArgument(5, inline)
+            putValueArgument(6, hasReturnType)
+            putValueArgument(7, nonSkippable)
+            putValueArgument(8, nonRestartable)
         }
 
         (declaration.body as IrBlockBody).statements.add(0, startCall)

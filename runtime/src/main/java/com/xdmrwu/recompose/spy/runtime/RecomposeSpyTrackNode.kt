@@ -13,6 +13,7 @@ class RecomposeSpyTrackNode(
     val file: String,
     val startLine: Int,
     val endLine: Int,
+    val isLambda: Boolean = false,
     val inline: Boolean = false,
     val hasReturnType: Boolean = false, // 有返回值的Composable 不会是 restartable，也不会 skip
     val nonSkippable: Boolean = false,
@@ -28,7 +29,7 @@ class RecomposeSpyTrackNode(
 
     override fun toString(): String {
         return "${file.last('/')}.${fqName.last()}[$startLine:$endLine] " +
-                "(inline=$inline, hasReturnType=$hasReturnType, nonSkippable=$nonSkippable, nonRestartable=$nonRestartable), $recomposeState"
+                "(isLambda=$isLambda, inline=$inline, hasReturnType=$hasReturnType, nonSkippable=$nonSkippable, nonRestartable=$nonRestartable), $recomposeState"
     }
 
     fun generateSpyInfo(indent: String = ""): String {

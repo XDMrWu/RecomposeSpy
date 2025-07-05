@@ -35,9 +35,9 @@ object RecomposeSpy {
         IdePluginPrinter()
     )
 
-    fun startComposableCall(fqName: String, file: String, startLine: Int, endLine: Int,
+    fun startComposableCall(fqName: String, file: String, startLine: Int, endLine: Int, isLambda: Boolean,
                             inline: Boolean, hasReturnType: Boolean = false, nonSkippable: Boolean, nonRestartable: Boolean) {
-        val node = RecomposeSpyTrackNode(fqName, file, startLine, endLine, inline, hasReturnType, nonSkippable, nonRestartable)
+        val node = RecomposeSpyTrackNode(fqName, file, startLine, endLine, isLambda, inline, hasReturnType, nonSkippable, nonRestartable)
         trackNodeStack.add(node)
         if (trackNodeStack.size > 1) {
             val parentNode = trackNodeStack[trackNodeStack.size - 2]
