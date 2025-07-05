@@ -9,7 +9,10 @@ import androidx.compose.runtime.remember
  * @Date: 2025/7/5 20:32
  * @Description:
  */
-@Stable
+
+class OuterClassV1
+
+//@Stable
 open class OuterClass(var name: String) {
     @Composable
     fun ThisParamTest(name: String) {
@@ -29,6 +32,27 @@ open class OuterClass(var name: String) {
         println(name)
         println(this.toString())
     }
+
+    @Composable
+    fun OuterClassV1.ThisPramTestWithReceiver(name: String) {
+        // Context Receiver changed 第一个参数表示 this
+        println(name)
+        println(this.toString())
+        println(this@OuterClass.toString())
+    }
+}
+
+@Composable
+fun OuterClass.ThisParamTestReceiver(name: String) {
+    // Context Receiver changed 第一个参数表示 this
+    println(name)
+}
+
+@Composable
+fun OuterClass.ThisPramTestWithCaptureReceiver(name: String) {
+    // Context Receiver changed 第一个参数表示 this
+    println(name)
+    println(this.toString())
 }
 
 @Composable
@@ -48,4 +72,5 @@ fun ThisParamTestCaseWithRemember() {
     outer.ThisParamTest("OuterClass")
     outer.ThisPramTestWithCapture("OuterClass")
     outer.ThisPramTestWithCaptureOpen("OuterClass")
+    outer.ThisPramTestWithCaptureReceiver("OuterClass")
 }

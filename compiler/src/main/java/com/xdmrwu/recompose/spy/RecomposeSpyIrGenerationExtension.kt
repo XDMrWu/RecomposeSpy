@@ -93,6 +93,9 @@ class RecomposeSpyIrGenerationExtension: BaseIrGenerationExtension() {
         val fileName = irBuilder.irString(declaration.file.fileEntry.name)
         val startLine = irBuilder.irInt(declaration.getStartLine())
         val endLine = irBuilder.irInt(declaration.getEndLine())
+        // lambda 不需要判断 this，在 ComposeLambdaImpl 里有
+        val hasDispatchReceiver = irBuilder.irBoolean(!isLambda && declaration.dispatchReceiverParameter != null)
+        val hasExtensionReceiver = irBuilder.irBoolean(!isLambda && declaration.extensionReceiverParameter != null)
         val isLambda = irBuilder.irBoolean(isLambda)
         val inline = irBuilder.irBoolean(inline)
         val hasReturnType = irBuilder.irBoolean(!declaration.returnType.isUnit())
@@ -107,15 +110,19 @@ class RecomposeSpyIrGenerationExtension: BaseIrGenerationExtension() {
                     )
                 )!!
             )
-            putValueArgument(0, fqName)
-            putValueArgument(1, fileName)
-            putValueArgument(2, startLine)
-            putValueArgument(3, endLine)
-            putValueArgument(4, isLambda)
-            putValueArgument(5, inline)
-            putValueArgument(6, hasReturnType)
-            putValueArgument(7, nonSkippable)
-            putValueArgument(8, nonRestartable)
+            putValueArguments(
+                fqName,
+                fileName,
+                startLine,
+                endLine,
+                hasDispatchReceiver,
+                hasExtensionReceiver,
+                isLambda,
+                inline,
+                hasReturnType,
+                nonSkippable,
+                nonRestartable
+            )
         }
 
         (declaration.body as IrBlockBody).statements.add(0, startCall)
@@ -168,9 +175,22 @@ class RecomposeSpyIrGenerationExtension: BaseIrGenerationExtension() {
             it.owner.valueParameters.any { it.isVararg }
         }.apply {
             putTypeArgument(0, pluginContext.irBuiltIns.stringType)
-            putValueArgument(0, irBuilder.irVararg(pluginContext.irBuiltIns.stringType, declaration.valueParameters.map {
+            val extensionReceiver= if (declaration.extensionReceiverParameter != null) {
+                listOf(irBuilder.irString(EXTENSION_RECEIVER_THIS_PARAM_NAME))
+            } else {
+                emptyList()
+            }
+            val dispatchReceiver = if (declaration.dispatchReceiverParameter != null) {
+                listOf(irBuilder.irString(DISPATCH_RECEIVER_THIS_PARAM_NAME))
+            } else {
+                emptyList()
+            }
+
+            val paramNames = extensionReceiver + declaration.valueParameters.map {
                 irBuilder.irString(it.name.asString())
-            }))
+            } + dispatchReceiver
+
+            putValueArgument(0, irBuilder.irVararg(pluginContext.irBuiltIns.stringType, paramNames))
         }
 
         val variable = irBuilder.scope.createTmpVariable(
@@ -186,7 +206,17 @@ class RecomposeSpyIrGenerationExtension: BaseIrGenerationExtension() {
     // TODO lambda 内使用的参数判断
     private fun getUnusedParamNames(pluginContext: IrPluginContext, irBuilder: DeclarationIrBuilder, declaration: IrFunction): IrVariable {
 
-        val unusedParams = declaration.valueParameters.toMutableList()
+        val extensionReceiver = if (declaration.extensionReceiverParameter != null) {
+            listOf(declaration.extensionReceiverParameter!!)
+        } else {
+            emptyList()
+        }
+        val dispatchReceiver = if (declaration.dispatchReceiverParameter != null) {
+            listOf(declaration.dispatchReceiverParameter!!)
+        } else {
+            emptyList()
+        }
+        val unusedParams = (extensionReceiver + declaration.valueParameters + dispatchReceiver).toMutableList()
 
         declaration.body?.acceptChildrenVoid(object : IrElementVisitorVoid {
 
@@ -205,7 +235,13 @@ class RecomposeSpyIrGenerationExtension: BaseIrGenerationExtension() {
         }.apply {
             putTypeArgument(0, pluginContext.irBuiltIns.stringType)
             putValueArgument(0, irBuilder.irVararg(pluginContext.irBuiltIns.stringType, unusedParams.map {
-                irBuilder.irString(it.name.asString())
+                if (declaration.dispatchReceiverParameter != null && it == declaration.dispatchReceiverParameter) {
+                    irBuilder.irString(DISPATCH_RECEIVER_THIS_PARAM_NAME)
+                } else if (declaration.extensionReceiverParameter != null && it == declaration.extensionReceiverParameter) {
+                    irBuilder.irString(EXTENSION_RECEIVER_THIS_PARAM_NAME)
+                } else {
+                    irBuilder.irString(it.name.asString())
+                }
             }))
         }
 

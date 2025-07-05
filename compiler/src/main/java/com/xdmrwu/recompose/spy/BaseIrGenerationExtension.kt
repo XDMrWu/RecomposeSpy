@@ -66,6 +66,8 @@ abstract class BaseIrGenerationExtension: IrGenerationExtension {
             "androidx.compose.runtime.DynamicProvidableCompositionLocal",
             "androidx.compose.runtime.ComputedProvidableCompositionLocal"
         )
+        val DISPATCH_RECEIVER_THIS_PARAM_NAME = "<dispatch-this>"
+        val EXTENSION_RECEIVER_THIS_PARAM_NAME = "<extension-this>"
     }
 
     protected fun IrFunction.ignore(): Boolean {
@@ -225,6 +227,12 @@ abstract class BaseIrGenerationExtension: IrGenerationExtension {
 
         if (irReturns.isEmpty()) {
             (body as? IrBlockBody)?.statements?.addAll(statementGenerator())
+        }
+    }
+
+    fun IrCall.putValueArguments(vararg valueArgument: IrExpression?) {
+        valueArgument.forEachIndexed { index, irExpression ->
+            putValueArgument(index, irExpression)
         }
     }
 }
