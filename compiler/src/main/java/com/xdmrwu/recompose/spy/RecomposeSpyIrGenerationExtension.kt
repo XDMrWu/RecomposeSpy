@@ -93,6 +93,8 @@ class RecomposeSpyIrGenerationExtension: BaseIrGenerationExtension() {
         val fileName = irBuilder.irString(declaration.file.fileEntry.name)
         val startLine = irBuilder.irInt(declaration.getStartLine())
         val endLine = irBuilder.irInt(declaration.getEndLine())
+        val startOffset = irBuilder.irInt(declaration.startOffset)
+        val endOffset = irBuilder.irInt(declaration.endOffset)
         // lambda 不需要判断 this，在 ComposeLambdaImpl 里有
         val hasDispatchReceiver = irBuilder.irBoolean(!isLambda && declaration.dispatchReceiverParameter != null)
         val hasExtensionReceiver = irBuilder.irBoolean(!isLambda && declaration.extensionReceiverParameter != null)
@@ -115,6 +117,8 @@ class RecomposeSpyIrGenerationExtension: BaseIrGenerationExtension() {
                 fileName,
                 startLine,
                 endLine,
+                startOffset,
+                endOffset,
                 hasDispatchReceiver,
                 hasExtensionReceiver,
                 isLambda,

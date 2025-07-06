@@ -13,6 +13,8 @@ class RecomposeSpyTrackNode(
     val file: String,
     val startLine: Int,
     val endLine: Int,
+    val startOffset: Int,
+    val endOffset: Int,
     val hasDispatchReceiver: Boolean,
     val hasExtensionReceiver: Boolean,
     val isLambda: Boolean = false,
