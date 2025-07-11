@@ -7,8 +7,6 @@ import com.xdmrwu.recompose.spy.runtime.RecomposeSpyTrackNode
  * @Date: 2025/7/3 21:26
  * @Description:
  */
-interface IRecomposeSpyPrinter {
-    fun printMessage(message: String)
-
-    fun printTrackNode(node: RecomposeSpyTrackNode)
+interface IRecomposeSpyReporter {
+    fun onRecompose(node: RecomposeSpyTrackNode)
 }

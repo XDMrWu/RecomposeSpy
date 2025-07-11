@@ -19,7 +19,7 @@ import kotlin.coroutines.CoroutineContext
  * @Date: 2025/7/3 21:28
  * @Description:
  */
-class IdePluginPrinter: IRecomposeSpyPrinter, CoroutineScope {
+class IdePluginReporter: IRecomposeSpyReporter, CoroutineScope {
 
     companion object {
         const val IDE_HOST = "127.0.0.1"
@@ -44,11 +44,7 @@ class IdePluginPrinter: IRecomposeSpyPrinter, CoroutineScope {
         }
     }
 
-    override fun printMessage(message: String) {
-        sendToIde(message)
-    }
-
-    override fun printTrackNode(node: RecomposeSpyTrackNode) {
+    override fun onRecompose(node: RecomposeSpyTrackNode) {
         sendToIde(json.encodeToString<RecomposeSpyTrackNode>(RecomposeSpyTrackNode.serializer(), node))
     }
 

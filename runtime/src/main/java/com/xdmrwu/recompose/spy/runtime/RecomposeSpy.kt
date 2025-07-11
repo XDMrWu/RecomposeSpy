@@ -3,8 +3,9 @@ package com.xdmrwu.recompose.spy.runtime
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.NonSkippableComposable
 import androidx.compose.runtime.remember
-import com.xdmrwu.recompose.spy.runtime.printer.IdePluginPrinter
-import com.xdmrwu.recompose.spy.runtime.printer.LogPrinter
+import com.xdmrwu.recompose.spy.runtime.printer.IRecomposeSpyReporter
+import com.xdmrwu.recompose.spy.runtime.printer.IdePluginReporter
+import com.xdmrwu.recompose.spy.runtime.printer.LogReporter
 
 /**
  * @Author: wulinpeng
@@ -30,10 +31,14 @@ object RecomposeSpy {
     // TODO 假设全局只有一个 Composition
     private val trackNodeStack = mutableListOf<RecomposeSpyTrackNode>()
 
-    private val printers = listOf(
-        LogPrinter(),
-        IdePluginPrinter()
+    private val reporters = mutableListOf(
+        LogReporter(),
+        IdePluginReporter()
     )
+
+    fun registerReporter(reporter: IRecomposeSpyReporter) {
+        reporters += reporter
+    }
 
     fun startComposableCall(fqName: String, file: String, startLine: Int, endLine: Int, startOffset: Int, endOffset: Int,
                             hasDispatchReceiver: Boolean, hasExtensionReceiver: Boolean,
@@ -126,7 +131,7 @@ object RecomposeSpy {
         )
 
         if (trackNodeStack.isEmpty()) {
-            printers.forEach { it.printTrackNode(node) }
+            reporters.forEach { it.onRecompose(node) }
         }
     }
 

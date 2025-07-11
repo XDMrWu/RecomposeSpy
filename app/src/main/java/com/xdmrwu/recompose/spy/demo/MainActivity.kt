@@ -32,6 +32,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import com.xdmrwu.recompose.spy.demo.case.LazyListTestCase
 import com.xdmrwu.recompose.spy.demo.case.RecomposeDebugTest
+import com.xdmrwu.recompose.spy.demo.case.RecomposeTestCase
 import com.xdmrwu.recompose.spy.demo.case.compiler.NonRestartableTest
 import com.xdmrwu.recompose.spy.demo.case.RememberTestCase
 import com.xdmrwu.recompose.spy.demo.case.TestIDEPlugin
@@ -39,11 +40,20 @@ import com.xdmrwu.recompose.spy.demo.case.compiler.DefaultTest
 import com.xdmrwu.recompose.spy.demo.case.compiler.DefaultTestCase
 import com.xdmrwu.recompose.spy.demo.case.compiler.NonSkippableTest
 import com.xdmrwu.recompose.spy.demo.theme.ComposeDebugToolTheme
+import com.xdmrwu.recompose.spy.runtime.RecomposeSpy
+import com.xdmrwu.recompose.spy.runtime.RecomposeSpyTrackNode
+import com.xdmrwu.recompose.spy.runtime.printer.IRecomposeSpyReporter
 
 class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
+        RecomposeSpy.registerReporter(object : IRecomposeSpyReporter {
+            override fun onRecompose(node: RecomposeSpyTrackNode) {
+                println("[MainActivity] onRecompose $node")
+            }
+
+        })
         setContent {
             ComposeDebugToolTheme {
                 Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
@@ -115,7 +125,10 @@ val testCases = listOf(
     },
     TestCase("LazyListTestCase") {
         LazyListTestCase()
-    }
+    },
+    TestCase("Recompose Test Case") {
+        RecomposeTestCase()
+    },
 )
 
 @Composable

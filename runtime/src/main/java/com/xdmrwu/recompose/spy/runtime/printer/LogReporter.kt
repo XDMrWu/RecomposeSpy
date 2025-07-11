@@ -7,12 +7,9 @@ import com.xdmrwu.recompose.spy.runtime.RecomposeSpyTrackNode
  * @Date: 2025/7/3 21:26
  * @Description:
  */
-class LogPrinter: IRecomposeSpyPrinter {
-    override fun printMessage(message: String) {
-        println(message)
-    }
+class LogReporter: IRecomposeSpyReporter {
 
-    override fun printTrackNode(node: RecomposeSpyTrackNode) {
+    override fun onRecompose(node: RecomposeSpyTrackNode) {
         println(node.generateSpyInfo().lines().joinToString("\n") {
             "[RecomposeSpy] $it"
         })
