@@ -1,5 +1,6 @@
 package com.xdmrwu.recompose.spy.runtime
 
+import com.xdmrwu.recompose.spy.runtime.analyze.recomposeReason
 import kotlinx.serialization.Serializable
 
 /**
@@ -22,6 +23,7 @@ class RecomposeSpyTrackNode(
     val hasReturnType: Boolean = false, // 有返回值的Composable 不会是 restartable，也不会 skip
     val nonSkippable: Boolean = false,
     val nonRestartable: Boolean = false,
+    var recomposeReason: String = "",
     val children: MutableList<RecomposeSpyTrackNode> = mutableListOf()
 ) {
 
@@ -48,6 +50,24 @@ class RecomposeSpyTrackNode(
     private fun String.last(split: Char = '.'): String {
         return split(split).last()
     }
+
+    fun getDisplayName(): String {
+        // 只保留一个匿名标识
+        val hasAnonymous = fqName.contains("<anonymous>")
+        val functionName = fqName.replace(".<anonymous>", "").split(".").last()
+        return if (hasAnonymous) {
+            "$functionName.<anonymous>[$startLine:$endLine]"
+        } else {
+            "$functionName[$startLine:$endLine]"
+        }
+    }
+    fun fillRecomposeReason() {
+        recomposeReason = this.recomposeReason()
+        children.forEach { child ->
+            child.fillRecomposeReason()
+        }
+    }
+
 }
 @Serializable
 data class RecomposeState(val paramStates: List<RecomposeParamState>,

@@ -131,6 +131,7 @@ object RecomposeSpy {
         )
 
         if (trackNodeStack.isEmpty()) {
+            node.fillRecomposeReason()
             reporters.forEach { it.onRecompose(node) }
         }
     }
