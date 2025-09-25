@@ -8,7 +8,9 @@ import org.jetbrains.kotlin.ir.IrStatement
 import org.jetbrains.kotlin.ir.builders.createTmpVariable
 import org.jetbrains.kotlin.ir.builders.irCall
 import org.jetbrains.kotlin.ir.builders.irGet
+import org.jetbrains.kotlin.ir.builders.irGetField
 import org.jetbrains.kotlin.ir.builders.irReturn
+import org.jetbrains.kotlin.ir.declarations.IrDeclaration
 import org.jetbrains.kotlin.ir.declarations.IrFunction
 import org.jetbrains.kotlin.ir.declarations.IrProperty
 import org.jetbrains.kotlin.ir.expressions.IrBlock
@@ -51,8 +53,8 @@ abstract class BaseIrGenerationExtension: IrGenerationExtension {
         const val RETURN_VAR_NAME = "${"$"}returnVar"
         const val RECOMPOSE_SPY_PACKAGE = "com.xdmrwu.recompose.spy.runtime"
         const val RECOMPOSE_SPY_CLASS_NAME = "RecomposeSpy"
-        const val RECOMPOSE_SPY_START_FUN_NAME = "startComposableCall"
-        const val RECOMPOSE_SPY_END_FUN_NAME = "RememberComposeInfo"
+        const val RECOMPOSE_SPY_START_FUN_NAME = "StartRecomposeSpy"
+        const val RECOMPOSE_SPY_END_FUN_NAME = "EndRecomposeSpy"
         const val RECOMPOSE_SPY_GET_EMPTY_DIRTIES_FUN_NAME = "getEmptyDirties"
         const val RECOMPOSE_SPY_RECORD_READ_VALUE_FUN_NAME = "recordReadValue"
         val STATE_CLASS_NAMES = listOf(
@@ -118,11 +120,13 @@ abstract class BaseIrGenerationExtension: IrGenerationExtension {
         return irBuilder.irCall(functionSymbol)
     }
 
-    fun IrCall.tryGetStateReadCallName(): String? {
+    // TODO 属性名称
+    fun IrCall.tryGetStateReadCallName(irBuilder: DeclarationIrBuilder): IrExpression? {
         // 判断 MutableState / State 的 <get-value> 函数调用
         if (symbol.owner.name.asString() == "<get-value>"
             && symbol.owner.dispatchReceiverParameter?.type?.classFqName?.asString() in STATE_CLASS_NAMES) {
-            return dispatchReceiver?.getPropertyName() ?: "UnknownStateProperty"
+            // TODO 某些场景拿不到名称，需要优化逻辑，同时支持 by
+            return dispatchReceiver
         }
         // 判断对委托属性的调用
         if (symbol.owner.isPropertyAccessor
@@ -133,10 +137,19 @@ abstract class BaseIrGenerationExtension: IrGenerationExtension {
                 isStateReadCall =  irProperty.backingField!!.type.classFqName?.asString() in STATE_CLASS_NAMES
             }
             if (isStateReadCall) {
-                return irProperty.name.asString()
+                return irBuilder.irGetField(dispatchReceiver, irProperty.backingField!!)
             } else {
                 return null
             }
+        }
+        return null
+    }
+
+    fun IrCall.tryGetCompositionLocalReadCallName(): IrExpression? {
+        // 判断 MutableState / State 的 <get-value> 函数调用
+        if (symbol.owner.name.asString() == "<get-current>"
+            && symbol.owner.dispatchReceiverParameter?.type?.classFqName?.asString() in COMPOSITION_LOCAL_CLASS_NAMES) {
+            return dispatchReceiver
         }
         return null
     }
@@ -155,15 +168,6 @@ abstract class BaseIrGenerationExtension: IrGenerationExtension {
             }
             else -> null
         }
-    }
-
-    fun IrCall.tryGetCompositionLocalReadCallName(): String? {
-        // 判断 MutableState / State 的 <get-value> 函数调用
-        if (symbol.owner.name.asString() == "<get-current>"
-            && symbol.owner.dispatchReceiverParameter?.type?.classFqName?.asString() in COMPOSITION_LOCAL_CLASS_NAMES) {
-            return dispatchReceiver?.getPropertyName() ?: "UnknownStateProperty"
-        }
-        return null
     }
 
     fun IrFunction.addStatementBeforeReturn(irBuilder: DeclarationIrBuilder, statementGenerator: () -> List<IrStatement>) {

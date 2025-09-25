@@ -46,6 +46,11 @@ class RecomposeSpyIrGenerationExtension: BaseIrGenerationExtension() {
         moduleFragment.transformChildrenVoid(object : IrElementTransformerVoid() {
             // 识别最外层的 @Composable 方法
             override fun visitFunction(declaration: IrFunction): IrStatement {
+                // 在所有代码中监听 State/CompositionLocal 的 get
+                val irBuilder= DeclarationIrBuilder(pluginContext, declaration.symbol)
+                recordReadStates(pluginContext, irBuilder, declaration)
+                recordReadCompositionLocals(pluginContext, irBuilder, declaration)
+
                 if (declaration.ignore()) {
                     return super.visitFunction(declaration)
                 }
@@ -90,6 +95,7 @@ class RecomposeSpyIrGenerationExtension: BaseIrGenerationExtension() {
     private fun insertStartCall(pluginContext: IrPluginContext, irBuilder: DeclarationIrBuilder,
                                 declaration: IrFunction, isLambda: Boolean, inline: Boolean) {
         val fqName = irBuilder.irString(declaration.kotlinFqName.asString())
+        // TODO 修改为当前项目相对路径
         val fileName = irBuilder.irString(declaration.file.fileEntry.name)
         val startLine = irBuilder.irInt(declaration.getStartLine())
         val endLine = irBuilder.irInt(declaration.getEndLine())
@@ -104,14 +110,7 @@ class RecomposeSpyIrGenerationExtension: BaseIrGenerationExtension() {
         val nonSkippable = irBuilder.irBoolean(declaration.nonSkippable())
         val nonRestartable = irBuilder.irBoolean(declaration.nonRestartable())
 
-        val startCall = irCall(pluginContext, irBuilder, RECOMPOSE_SPY_PACKAGE, RECOMPOSE_SPY_CLASS_NAME, RECOMPOSE_SPY_START_FUN_NAME).apply {
-            dispatchReceiver = irBuilder.irGetObject(
-                pluginContext.referenceClass(
-                    ClassId(
-                        FqName(RECOMPOSE_SPY_PACKAGE), Name.identifier(RECOMPOSE_SPY_CLASS_NAME)
-                    )
-                )!!
-            )
+        val startCall = irCall(pluginContext, irBuilder, RECOMPOSE_SPY_PACKAGE, null, RECOMPOSE_SPY_START_FUN_NAME).apply {
             putValueArguments(
                 fqName,
                 fileName,
@@ -137,27 +136,16 @@ class RecomposeSpyIrGenerationExtension: BaseIrGenerationExtension() {
         val paramNames = getParamNames(pluginContext, irBuilder, declaration)
         val unusedParamNames = getUnusedParamNames(pluginContext, irBuilder, declaration)
         val defaultBitMasks = getDefaultBitMasks(pluginContext, irBuilder, declaration)
-        val readStates = getReadStates(pluginContext, irBuilder, declaration)
-        val readCompositionLocals = getReadCompositionLocals(pluginContext, irBuilder, declaration)
 
         declaration.addStatementBeforeReturn(irBuilder) {
             val dirties = getDirties(pluginContext, irBuilder, declaration)
 
-            val endCall = irCall(pluginContext, irBuilder, RECOMPOSE_SPY_PACKAGE, RECOMPOSE_SPY_CLASS_NAME, RECOMPOSE_SPY_END_FUN_NAME).apply {
-                dispatchReceiver = irBuilder.irGetObject(
-                    pluginContext.referenceClass(
-                        ClassId(
-                            FqName(RECOMPOSE_SPY_PACKAGE), Name.identifier(RECOMPOSE_SPY_CLASS_NAME)
-                        )
-                    )!!
-                )
+            val endCall = irCall(pluginContext, irBuilder, RECOMPOSE_SPY_PACKAGE, null, RECOMPOSE_SPY_END_FUN_NAME).apply {
                 putValueArgument(0, irBuilder.irString(declaration.kotlinFqName.asString()))
                 putValueArgument(1, irBuilder.irGet(dirties))
                 putValueArgument(2, irBuilder.irGet(paramNames))
                 putValueArgument(3, irBuilder.irGet(unusedParamNames))
                 putValueArgument(4, irBuilder.irGet(defaultBitMasks))
-                putValueArgument(5, irBuilder.irGet(readStates))
-                putValueArgument(6, irBuilder.irGet(readCompositionLocals))
             }
             listOf(dirties, endCall)
         }
@@ -277,23 +265,9 @@ class RecomposeSpyIrGenerationExtension: BaseIrGenerationExtension() {
         return variable
     }
 
-    // 获取当前方法中对 State.getValue 的调用
-    private fun getReadStates(pluginContext: IrPluginContext, irBuilder: DeclarationIrBuilder, function: IrFunction): IrVariable {
-
-        val mapOfCall = irCall(pluginContext, irBuilder, "kotlin.collections", null, "mutableMapOf"){
-            it.owner.valueParameters.any { it.isVararg }
-        }.apply {
-            putTypeArgument(0, pluginContext.irBuiltIns.stringType)
-            putTypeArgument(1, pluginContext.irBuiltIns.anyNType)
-        }
-
-        val readStateVariable = irBuilder.scope.createTmpVariable(
-            pluginContext.irBuiltIns.mutableMapClass.owner.defaultType,
-            READ_STATE_VAR_NAME,
-            initializer = mapOfCall
-        )
-
-        (function.body as IrBlockBody).statements.add(0, readStateVariable)
+    // TODO 所有代码
+    // 监听当前方法中对 State.getValue 的调用
+    private fun recordReadStates(pluginContext: IrPluginContext, irBuilder: DeclarationIrBuilder, function: IrFunction) {
 
         // 获取 state 的地方插入 recordReadValue
         function.body?.transformChildrenVoid(object : NestedFunctionAwareTransformer() {
@@ -301,13 +275,20 @@ class RecomposeSpyIrGenerationExtension: BaseIrGenerationExtension() {
                 if (isNestedScope) {
                     return super.visitCall(expression)
                 }
-                val statePropertyName = expression.tryGetStateReadCallName()
-                if (statePropertyName != null) {
+                val stateExpression = expression.tryGetStateReadCallName(irBuilder)
+                if (stateExpression != null) {
                     val recordValueCall = irCall(pluginContext, irBuilder, RECOMPOSE_SPY_PACKAGE, null, RECOMPOSE_SPY_RECORD_READ_VALUE_FUN_NAME).apply {
                         putTypeArgument(0, expression.type)
-                        putValueArgument(0, irBuilder.irGet(readStateVariable))
-                        putValueArgument(1, irBuilder.irString(statePropertyName))
-                        putValueArgument(2, expression)
+                        putValueArguments(
+                            expression,
+                            stateExpression,
+                            irBuilder.irString(function.file.fileEntry.name),
+                            irBuilder.irString(stateExpression.getPropertyName() ?: ""),
+                            irBuilder.irInt(function.file.fileEntry.getLineNumber(expression.startOffset) + 1),
+                            irBuilder.irInt(function.file.fileEntry.getLineNumber(expression.endOffset) + 1),
+                            irBuilder.irInt(expression.startOffset),
+                            irBuilder.irInt(expression.endOffset)
+                        )
                     }
 
                     return recordValueCall
@@ -315,26 +296,10 @@ class RecomposeSpyIrGenerationExtension: BaseIrGenerationExtension() {
                 return super.visitCall(expression)
             }
         })
-
-        return readStateVariable
     }
 
-    // 获取当前方法中对 CompositionLocal.current 的调用
-    private fun getReadCompositionLocals(pluginContext: IrPluginContext, irBuilder: DeclarationIrBuilder, function: IrFunction): IrVariable {
-        val mapOfCall = irCall(pluginContext, irBuilder, "kotlin.collections", null, "mutableMapOf") {
-            it.owner.valueParameters.any { it.isVararg }
-        }.apply {
-            putTypeArgument(0, pluginContext.irBuiltIns.stringType)
-            putTypeArgument(1, pluginContext.irBuiltIns.anyNType)
-        }
-
-        val readCompositionLocalsVariable = irBuilder.scope.createTmpVariable(
-            pluginContext.irBuiltIns.mutableMapClass.owner.defaultType,
-            READ_COMPOSITION_LOCALS_VAR_NAME,
-            initializer = mapOfCall
-        )
-
-        (function.body as IrBlockBody).statements.add(0, readCompositionLocalsVariable)
+    // 监听当前方法中对 CompositionLocal.current 的调用
+    private fun recordReadCompositionLocals(pluginContext: IrPluginContext, irBuilder: DeclarationIrBuilder, function: IrFunction) {
 
         // 获取 compositionLocal 的地方插入 recordReadValue
         function.body?.transformChildrenVoid(object : NestedFunctionAwareTransformer() {
@@ -342,20 +307,25 @@ class RecomposeSpyIrGenerationExtension: BaseIrGenerationExtension() {
                 if (isNestedScope) {
                     return super.visitCall(expression)
                 }
-                val compositionLocalPropertyName = expression.tryGetCompositionLocalReadCallName()
-                if (compositionLocalPropertyName != null) {
+                val compositionLocalExpression = expression.tryGetCompositionLocalReadCallName()
+                if (compositionLocalExpression != null) {
                     val recordValueCall = irCall(pluginContext, irBuilder, RECOMPOSE_SPY_PACKAGE, null, RECOMPOSE_SPY_RECORD_READ_VALUE_FUN_NAME).apply {
                         putTypeArgument(0, expression.type)
-                        putValueArgument(0, irBuilder.irGet(readCompositionLocalsVariable))
-                        putValueArgument(1, irBuilder.irString(compositionLocalPropertyName))
-                        putValueArgument(2, expression)
+                        putValueArguments(
+                            expression,
+                            compositionLocalExpression,
+                            irBuilder.irString(function.file.fileEntry.name),
+                            irBuilder.irString(compositionLocalExpression.getPropertyName() ?: ""),
+                            irBuilder.irInt(function.file.fileEntry.getLineNumber(expression.startOffset) + 1),
+                            irBuilder.irInt(function.file.fileEntry.getLineNumber(expression.endOffset) + 1),
+                            irBuilder.irInt(expression.startOffset),
+                            irBuilder.irInt(expression.endOffset)
+                        )
                     }
                     return recordValueCall
                 }
                 return super.visitCall(expression)
             }
         })
-
-        return readCompositionLocalsVariable
     }
 }

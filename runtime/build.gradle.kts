@@ -41,6 +41,7 @@ android {
 dependencies {
     implementation(platform(libs.androidx.compose.bom))
     implementation(libs.androidx.runtime)
+    implementation(libs.androidx.ui)
     implementation(libs.kotlinx.serialization.json)
 }
 

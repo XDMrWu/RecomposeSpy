@@ -2,6 +2,7 @@ package com.xdmrwu.recompose.spy.runtime
 
 import com.xdmrwu.recompose.spy.runtime.analyze.recomposeReason
 import kotlinx.serialization.Serializable
+import kotlinx.serialization.Transient
 
 /**
  * @Author: wulinpeng
@@ -40,9 +41,9 @@ class RecomposeSpyTrackNode(
 
     fun generateSpyInfo(indent: String = ""): String {
         val sb = StringBuilder()
-        sb.append("$indent${toString()}\n")
+        sb.append("$indent${toString()}")
         for (child in children) {
-            sb.append(child.generateSpyInfo(indent + "  "))
+            sb.append("\n${child.generateSpyInfo(indent + "  ")}")
         }
         return sb.toString()
     }
@@ -72,7 +73,6 @@ class RecomposeSpyTrackNode(
 @Serializable
 data class RecomposeState(val paramStates: List<RecomposeParamState>,
                           val readStates: List<RecomposeReadState>,
-                          val readCompositionLocals: List<RecomposeReadState>,
                           val forceRecompose: Boolean = false)
 
 @Serializable
@@ -87,8 +87,13 @@ data class RecomposeParamState(
 
 @Serializable
 data class RecomposeReadState(
-    val name: String,
-    val oldValue: String?,
-    val newValue: String?,
-    val changed: Boolean
+    @Transient
+    val state: Any = Any(),
+    val file: String,
+    val propertyName: String,
+    val startLine: Int,
+    val endLine: Int,
+    val startOffset: Int,
+    val endOffset: Int,
+    val stackTrace: List<String>
 )

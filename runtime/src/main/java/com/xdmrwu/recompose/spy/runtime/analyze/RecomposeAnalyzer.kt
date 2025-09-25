@@ -22,36 +22,17 @@ fun RecomposeSpyTrackNode.recomposeReason(): String {
             // 其他的就不是 force 了，但是也会执行，所以都需要判断 param 和 state
 
             // 检查参数参数变化
-            val changedParams = this@recomposeReason.changedParams()
+            val changedParams = changedParams()
+            val changedStates = changedStatesInfo()
 
-            // 检查 State 和 CompositionLocal 变化
-            var changedStates = ""
-            // TODO 可能存在多个 node
-            var node: RecomposeSpyTrackNode? = null
-            traverseInlineChildren {
-                if (changedStates.isNotEmpty()) {
-                    return@traverseInlineChildren
-                }
-                changedStates = it.changedValueInfo(state = true, compositionLocal = true)
-                node = it
-            }
-
-            if (recomposeState.forceRecompose) {
+            if (recomposeState.forceRecompose || changedStates.isNotEmpty()) {
                 when {
                     changedParams.isEmpty() && changedStates.isEmpty() -> {
                         reason.appendLine("此方法为本次重组的 Scope，但没有找到触发重组、State 或 CompositionLocal 变化信息。")
                     }
-                    changedStates.isEmpty() -> {
-                        reason.appendLine("此方法为本次重组的 Scope，但没有找到触发重组、State 或 CompositionLocal 变化信息。有以下参数变化信息")
-                        reason.appendLine(changedParams)
-                    }
-                    node != this -> {
-                        reason.appendLine("此方法为本次重组的 Scope，因为某个 inline 子组件的 State 或 CompositionLocal 发生了变化而触发重组")
-                        reason.appendLine("子组件: ${node!!.getDisplayName()}")
-                        reason.appendLine(changedStates)
-                    }
                     else -> {
                         reason.appendLine("此方法为本次重组的 Scope，因为以下 State 或 CompositionLocal 发生了变化而触发重组")
+                        reason.appendLine(changedParams)
                         reason.appendLine(changedStates)
                     }
 
@@ -64,9 +45,6 @@ fun RecomposeSpyTrackNode.recomposeReason(): String {
                     else -> {
                         reason.appendLine("该 Composable 方法无法跳过重组，因为以下 State 或 CompositionLocal 发生了变化而触发重组")
                         reason.appendLine(changedParams)
-                        if (node != this) {
-                            reason.appendLine("子组件: ${node!!.getDisplayName()}")
-                        }
                         reason.appendLine(changedStates)
                     }
 
@@ -91,23 +69,15 @@ fun RecomposeSpyTrackNode.changedParams(): String {
     return changedInfo.toString()
 }
 
-fun RecomposeSpyTrackNode.changedValueInfo(state: Boolean = false, compositionLocal: Boolean = false): String {
-    val changedStates = recomposeState.readStates.filter { it.changed }
-    val changedCompositionLocals = recomposeState.readCompositionLocals.filter { it.changed }
-
+fun RecomposeSpyTrackNode.changedStatesInfo(): String {
+    if (recomposeState.readStates.isEmpty()) {
+        return ""
+    }
     val changedInfo = StringBuilder()
 
-    if (state && changedStates.isNotEmpty()) {
-        changedInfo.appendLine("Changed States:")
-        changedStates.forEach { state ->
-            changedInfo.appendLine("  - ${state.name}: oldValue=${state.oldValue}, newValue=${state.newValue}")
-        }
-    }
-    if (compositionLocal && changedCompositionLocals.isNotEmpty()) {
-        changedInfo.appendLine("Changed Composition Locals:")
-        changedCompositionLocals.forEach { local ->
-            changedInfo.appendLine("  - ${local.name}: oldValue=${local.oldValue}, newValue=${local.newValue}")
-        }
+    changedInfo.appendLine("Changed States:")
+    recomposeState.readStates.forEach { state ->
+        changedInfo.appendLine("  - ${state.file}(${state.startLine}:${state.endLine})")
     }
 
     return changedInfo.toString()
