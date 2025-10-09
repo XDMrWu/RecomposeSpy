@@ -51,7 +51,7 @@ class RecomposeSpy {
                         readonly: Boolean
                     ): SnapshotInstanceObservers? {
                         return SnapshotInstanceObservers(readObserver = {
-                            onReadState(RecomposeReadState(it, "", "", -1, -1, -1, -1, RuntimeException().stackTraceToString().lines()))
+                            onReadState(RecomposeReadState(it, "", "", -1, -1, -1, -1))
                         })
                     }
                 })
@@ -90,6 +90,14 @@ class RecomposeSpy {
 
     fun onReadState(readState: RecomposeReadState) {
         currentRecomposeScopeStack.lastOrNull()?.let { scope ->
+            // 仅在业务自己的 RecomposeScope 内追踪 State Read，减少抓栈耗时
+            // TODO mapping 处理
+            val stackTrace = if (trackScope in listOf(RecomposeSpyTrackScope.SCOPE_PROJECT_SOURCE_WITH_STACK_TRACE, RecomposeSpyTrackScope.SCOPE_ALL)) {
+                getStateReadStackTrace()
+            } else {
+                emptyList()
+            }
+            readState.stackTrace = stackTrace
 
             val list = stateReadInfoMap.getOrPut(scope) {
                 mutableListOf()
@@ -101,6 +109,14 @@ class RecomposeSpy {
             }
             list.add(readState)
         }
+    }
+
+    private fun getStateReadStackTrace(): List<String> {
+        val lines = RuntimeException().stackTraceToString().lines().map { it.trim() }
+        val index = lines.indexOfFirst {
+            it.contains("androidx.compose.runtime.snapshots.SnapshotKt.readable(")
+        }
+        return lines.subList(index + 1, lines.size)
     }
 
     @Composable
@@ -208,11 +224,6 @@ fun <T> recordReadValue(originValue:T, state: Any, file: String, propertyName: S
         // 通过 Snapshot.observeSnapshots 监听，不走编译期插桩
         return originValue
     }
-    val stackTrace = if (RecomposeSpy.trackScope == RecomposeSpyTrackScope.SCOPE_PROJECT_SOURCE_WITH_STACK_TRACE) {
-        RuntimeException().stackTraceToString().lines()
-    } else {
-        emptyList()
-    }
-    RecomposeSpy.onReadState(RecomposeReadState(state, file, propertyName, startLine, endLine, startOffset, endOffset, stackTrace))
+    RecomposeSpy.onReadState(RecomposeReadState(state, file, propertyName, startLine, endLine, startOffset, endOffset))
     return originValue
 }

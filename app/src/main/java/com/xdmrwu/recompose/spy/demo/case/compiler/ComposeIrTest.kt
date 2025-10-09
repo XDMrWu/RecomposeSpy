@@ -1,4 +1,4 @@
-package com.xdmrwu.recompose.spy.demo.case
+package com.xdmrwu.recompose.spy.demo.case.compiler
 
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable

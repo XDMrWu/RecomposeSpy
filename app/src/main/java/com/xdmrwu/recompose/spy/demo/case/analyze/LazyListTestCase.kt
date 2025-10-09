@@ -1,4 +1,4 @@
-package com.xdmrwu.recompose.spy.demo.case
+package com.xdmrwu.recompose.spy.demo.case.analyze
 
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.material3.Button

@@ -12,6 +12,7 @@ import org.jetbrains.kotlin.ir.builders.irGetObject
 import org.jetbrains.kotlin.ir.builders.irInt
 import org.jetbrains.kotlin.ir.builders.irString
 import org.jetbrains.kotlin.ir.builders.irVararg
+import org.jetbrains.kotlin.ir.declarations.IrDeclarationOrigin
 import org.jetbrains.kotlin.ir.declarations.IrFunction
 import org.jetbrains.kotlin.ir.declarations.IrModuleFragment
 import org.jetbrains.kotlin.ir.declarations.IrVariable
@@ -269,13 +270,17 @@ class RecomposeSpyIrGenerationExtension: BaseIrGenerationExtension() {
     // 监听当前方法中对 State.getValue 的调用
     private fun recordReadStates(pluginContext: IrPluginContext, irBuilder: DeclarationIrBuilder, function: IrFunction) {
 
+        // 为委托属性生成的 getter 方法内不处理，只监听外层的调用点
+        if (function.origin == IrDeclarationOrigin.DELEGATED_PROPERTY_ACCESSOR) {
+            return
+        }
         // 获取 state 的地方插入 recordReadValue
         function.body?.transformChildrenVoid(object : NestedFunctionAwareTransformer() {
             override fun visitCall(expression: IrCall): IrExpression {
                 if (isNestedScope) {
                     return super.visitCall(expression)
                 }
-                val stateExpression = expression.tryGetStateReadCallName(irBuilder)
+                val stateExpression = expression.tryGetStateReadCallName(irBuilder, function)
                 if (stateExpression != null) {
                     val recordValueCall = irCall(pluginContext, irBuilder, RECOMPOSE_SPY_PACKAGE, null, RECOMPOSE_SPY_RECORD_READ_VALUE_FUN_NAME).apply {
                         putTypeArgument(0, expression.type)

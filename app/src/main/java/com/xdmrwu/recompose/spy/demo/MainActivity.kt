@@ -15,7 +15,6 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.size
 import androidx.compose.material3.Button
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
@@ -28,17 +27,9 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
-import com.xdmrwu.recompose.spy.demo.case.LazyListTestCase
-import com.xdmrwu.recompose.spy.demo.case.RecomposeDebugTest
-import com.xdmrwu.recompose.spy.demo.case.RecomposeTestCase
-import com.xdmrwu.recompose.spy.demo.case.compiler.NonRestartableTest
-import com.xdmrwu.recompose.spy.demo.case.RememberTestCase
-import com.xdmrwu.recompose.spy.demo.case.TestIDEPlugin
-import com.xdmrwu.recompose.spy.demo.case.compiler.DefaultTestCase
-import com.xdmrwu.recompose.spy.demo.case.compiler.NonSkippableTest
+import com.xdmrwu.recompose.spy.demo.case.compiler.StateChangeTest
 import com.xdmrwu.recompose.spy.demo.theme.RecomposeSpyTheme
 import com.xdmrwu.recompose.spy.runtime.RecomposeSpy
 import com.xdmrwu.recompose.spy.runtime.RecomposeSpyContainer
@@ -50,7 +41,7 @@ class MainActivity : ComponentActivity() {
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()
-        RecomposeSpy.init(RecomposeSpyTrackScope.SCOPE_PROJECT_SOURCE)
+        RecomposeSpy.init(RecomposeSpyTrackScope.SCOPE_PROJECT_SOURCE_WITH_STACK_TRACE)
         RecomposeSpy.registerReporter(object : IRecomposeSpyReporter {
             override fun onRecompose(node: RecomposeSpyTrackNode) {
                 println("[MainActivity] onRecompose $node")
@@ -61,59 +52,14 @@ class MainActivity : ComponentActivity() {
             RecomposeSpyContainer {
                 RecomposeSpyTheme {
                     Scaffold(modifier = Modifier.fillMaxSize()) { innerPadding ->
-                        Column {
-                            var state by remember { mutableStateOf(0) }
-                            Box(Modifier.size(100.dp).drawBehind {
-                                println(state)
-                                drawLine(Color.Red, start = this.center, end = this.center)
-                            })
-                            Button(onClick = {
-                                state++
-                            }) {
-                                Text("Click")
-                            }
-                            TestCaseList(
-                                modifier = Modifier.padding(innerPadding)
-                            )
-                            TestReturnV1(false)
-                            TestReturnV1(true)
-                            TestReturnV2(false)
-                            TestReturnV2(true)
-                        }
+                        TestCaseList(
+                            modifier = Modifier.padding(innerPadding)
+                        )
                     }
                 }
             }
         }
     }
-}
-@Composable
-fun TestReturnV1(a: Boolean): Int {
-    var count = getCount()
-    if (a) {
-        return count
-    }
-    return count + 1
-}
-
-@Composable
-fun TestReturnV2(a: Boolean) {
-    var count = getCount()
-    Empty()
-    if (a) {
-        Empty()
-        return
-    }
-    Empty()
-    return
-}
-
-@Composable
-fun Empty() {
-
-}
-
-fun getCount(): Int {
-    return 42
 }
 
 data class TestCase(
@@ -122,29 +68,8 @@ data class TestCase(
 )
 
 val testCases = listOf(
-    TestCase("Remember") {
-        RememberTestCase()
-    },
-    TestCase("NonRestartableTest") {
-        NonRestartableTest()
-    },
-    TestCase("NonSkippableTest") {
-        NonSkippableTest("")
-    },
-    TestCase("Recompose Debug Test") {
-        RecomposeDebugTest()
-    },
-    TestCase("Test IDE Plugin") {
-         TestIDEPlugin()
-    },
-    TestCase("Compiler Default Test") {
-        DefaultTestCase()
-    },
-    TestCase("LazyListTestCase") {
-        LazyListTestCase()
-    },
-    TestCase("Recompose Test Case") {
-        RecomposeTestCase()
+    TestCase("State Change") {
+        StateChangeTest()
     },
 )
 

@@ -95,5 +95,5 @@ data class RecomposeReadState(
     val endLine: Int,
     val startOffset: Int,
     val endOffset: Int,
-    val stackTrace: List<String>
+    var stackTrace: List<String> = emptyList()
 )

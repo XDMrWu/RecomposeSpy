@@ -12,6 +12,7 @@ import org.jetbrains.kotlin.ir.builders.irGetField
 import org.jetbrains.kotlin.ir.builders.irReturn
 import org.jetbrains.kotlin.ir.declarations.IrDeclaration
 import org.jetbrains.kotlin.ir.declarations.IrFunction
+import org.jetbrains.kotlin.ir.declarations.IrLocalDelegatedProperty
 import org.jetbrains.kotlin.ir.declarations.IrProperty
 import org.jetbrains.kotlin.ir.expressions.IrBlock
 import org.jetbrains.kotlin.ir.expressions.IrBlockBody
@@ -57,6 +58,10 @@ abstract class BaseIrGenerationExtension: IrGenerationExtension {
         const val RECOMPOSE_SPY_END_FUN_NAME = "EndRecomposeSpy"
         const val RECOMPOSE_SPY_GET_EMPTY_DIRTIES_FUN_NAME = "getEmptyDirties"
         const val RECOMPOSE_SPY_RECORD_READ_VALUE_FUN_NAME = "recordReadValue"
+        val GET_STATE_CALL = listOf(
+            "getValue",
+            "<get-value>"
+        )
         val STATE_CLASS_NAMES = listOf(
             "androidx.compose.runtime.State",
             "androidx.compose.runtime.MutableState"
@@ -121,14 +126,18 @@ abstract class BaseIrGenerationExtension: IrGenerationExtension {
     }
 
     // TODO 属性名称
-    fun IrCall.tryGetStateReadCallName(irBuilder: DeclarationIrBuilder): IrExpression? {
+    fun IrCall.tryGetStateReadCallName(irBuilder: DeclarationIrBuilder, irFunction: IrFunction): IrExpression? {
         // 判断 MutableState / State 的 <get-value> 函数调用
-        if (symbol.owner.name.asString() == "<get-value>"
-            && symbol.owner.dispatchReceiverParameter?.type?.classFqName?.asString() in STATE_CLASS_NAMES) {
-            // TODO 某些场景拿不到名称，需要优化逻辑，同时支持 by
-            return dispatchReceiver
+        val functionName = symbol.owner.name.asString()
+        if (functionName == "<get-state3>") {
+            println(this)
         }
-        // 判断对委托属性的调用
+        val receiver = dispatchReceiver ?: extensionReceiver
+        val receiverType = receiver?.type?.classFqName?.asString()
+        if (functionName in GET_STATE_CALL && receiverType in STATE_CLASS_NAMES) {
+            return receiver
+        }
+        // 全局委托属性的调用
         if (symbol.owner.isPropertyAccessor
             && symbol.owner.propertyIfAccessor is IrProperty) {
             val irProperty = symbol.owner.propertyIfAccessor as IrProperty
@@ -138,9 +147,21 @@ abstract class BaseIrGenerationExtension: IrGenerationExtension {
             }
             if (isStateReadCall) {
                 return irBuilder.irGetField(dispatchReceiver, irProperty.backingField!!)
-            } else {
-                return null
             }
+        }
+        // 方法局部委托属性的调用，需要通过变量找到对应的委托属性
+        var localDelegatedProperty: IrLocalDelegatedProperty? = null
+        irFunction.body?.acceptChildrenVoid(object : NestedFunctionAwareVisitor() {
+            override fun visitLocalDelegatedProperty(declaration: IrLocalDelegatedProperty) {
+                if (declaration.getter == symbol.owner
+                    && declaration.delegate.type.classFqName?.asString() in STATE_CLASS_NAMES) {
+                    localDelegatedProperty = declaration
+                }
+                super.visitLocalDelegatedProperty(declaration)
+            }
+        })
+        if (localDelegatedProperty != null) {
+            return irBuilder.irGet(localDelegatedProperty.delegate)
         }
         return null
     }
