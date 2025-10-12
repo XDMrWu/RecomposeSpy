@@ -24,6 +24,7 @@ class RecomposeSpyTrackNode(
     val hasReturnType: Boolean = false, // 有返回值的Composable 不会是 restartable，也不会 skip
     val nonSkippable: Boolean = false,
     val nonRestartable: Boolean = false,
+    var compositionCount: Int = 0,
     var recomposeReason: String = "",
     val children: MutableList<RecomposeSpyTrackNode> = mutableListOf()
 ) {
@@ -87,13 +88,15 @@ data class RecomposeParamState(
 
 @Serializable
 data class RecomposeReadState(
-    @Transient
-    val state: Any = Any(),
     val file: String,
     val propertyName: String,
     val startLine: Int,
     val endLine: Int,
     val startOffset: Int,
     val endOffset: Int,
+    var currentComposableRead: Boolean = false,
     var stackTrace: List<String> = emptyList()
-)
+) {
+    @Transient
+    var state: Any = Any()
+}

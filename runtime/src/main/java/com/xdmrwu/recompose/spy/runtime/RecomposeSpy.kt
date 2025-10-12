@@ -8,6 +8,7 @@ import androidx.compose.runtime.NonRestartableComposable
 import androidx.compose.runtime.NonSkippableComposable
 import androidx.compose.runtime.RecomposeScope
 import androidx.compose.runtime.currentRecomposeScope
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.snapshots.Snapshot
 import androidx.compose.runtime.snapshots.tooling.SnapshotInstanceObservers
 import androidx.compose.runtime.snapshots.tooling.SnapshotObserver
@@ -51,7 +52,7 @@ class RecomposeSpy {
                         readonly: Boolean
                     ): SnapshotInstanceObservers? {
                         return SnapshotInstanceObservers(readObserver = {
-                            onReadState(RecomposeReadState(it, "", "", -1, -1, -1, -1))
+                            onReadState(RecomposeReadState("", "", -1, -1, -1, -1).also { it.state = it })
                         })
                     }
                 })
@@ -86,7 +87,7 @@ class RecomposeSpy {
 
     var currentInvalidationMap: Map<RecomposeScope, Set<Any>> = emptyMap()
     private var currentRecomposeScopeStack: MutableList<RecomposeScope> = mutableListOf()
-    private val stateReadInfoMap = mutableMapOf<RecomposeScope, List<RecomposeReadState>>()
+    private val stateReadInfoList = mutableListOf<Triple<RecomposeReadState, RecomposeScope, RecomposeSpyTrackNode>>()
 
     fun onReadState(readState: RecomposeReadState) {
         currentRecomposeScopeStack.lastOrNull()?.let { scope ->
@@ -99,15 +100,14 @@ class RecomposeSpy {
             }
             readState.stackTrace = stackTrace
 
-            val list = stateReadInfoMap.getOrPut(scope) {
-                mutableListOf()
-            } as MutableList<RecomposeReadState>
-            list.indexOfFirst {
-                it.state === readState.state
-            }.takeIf { it >= 0 }?.let { preIndex ->
-                list.removeAt(preIndex)
+            val currentNode = trackNodeStack.last()
+            val hasSameStateRead = stateReadInfoList.any {
+                it.first.state === readState.state && it.second == scope && it.third == currentNode
             }
-            list.add(readState)
+            // TODO 一个 Composable 读取同样 State 多次，现在只取第一次，后续可以支持同时展示多个
+            if (!hasSameStateRead) {
+                stateReadInfoList.add(Triple(readState, scope, currentNode))
+            }
         }
     }
 
@@ -129,10 +129,17 @@ class RecomposeSpy {
 
         currentRecomposeScopeStack.add(currentRecomposeScope)
 
-        val node = RecomposeSpyTrackNode(
-            fqName, file, startLine, endLine, startOffset, endOffset, hasDispatchReceiver, hasExtensionReceiver,
-            isLambda, inline, hasReturnType, nonSkippable, nonRestartable
-        )
+        // remember tracknode，read 与 TrackNode 绑定，可以直观看出读取的 Composable，而不是最外层的 RecomposeScope
+        val node = remember {
+            RecomposeSpyTrackNode(
+                fqName, file, startLine, endLine, startOffset, endOffset, hasDispatchReceiver, hasExtensionReceiver,
+                isLambda, inline, hasReturnType, nonSkippable, nonRestartable
+            )
+        }.also {
+            // 每次重组时清空子节点，重新构建树
+            it.children.clear()
+            it.compositionCount++
+        }
         trackNodeStack.add(node)
         if (trackNodeStack.size > 1) {
             val parentNode = trackNodeStack[trackNodeStack.size - 2]
@@ -158,11 +165,14 @@ class RecomposeSpy {
             "Expected to be called in the same composable call as StartRecomposeSpy, but got $fqName instead of ${node.fqName}"
         }
 
-        val invalidStates = currentInvalidationMap[currentRecomposeScope] ?: emptySet()
-        val readStates = stateReadInfoMap[currentRecomposeScope] ?: emptyList()
-        val stateChangedInfo = readStates.filter {
-            invalidStates.contains(it.state)
-        }
+        val stateChangedInfo = stateReadInfoList.filter {
+            it.second == currentRecomposeScope
+                    && currentInvalidationMap[currentRecomposeScope]?.any { state -> state === it.first.state } == true
+        }.map {
+            it.first.copy().also { state ->
+                state.currentComposableRead = it.third === node
+            }
+        }.distinct()
 
         val paramStates = paramNames.mapIndexed { index, name ->
             if (unusedParams.contains(name)) {
@@ -224,6 +234,6 @@ fun <T> recordReadValue(originValue:T, state: Any, file: String, propertyName: S
         // 通过 Snapshot.observeSnapshots 监听，不走编译期插桩
         return originValue
     }
-    RecomposeSpy.onReadState(RecomposeReadState(state, file, propertyName, startLine, endLine, startOffset, endOffset))
+    RecomposeSpy.onReadState(RecomposeReadState(file, propertyName, startLine, endLine, startOffset, endOffset).also { it.state = state })
     return originValue
 }

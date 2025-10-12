@@ -11,6 +11,7 @@ import org.jetbrains.kotlin.ir.builders.irGet
 import org.jetbrains.kotlin.ir.builders.irGetField
 import org.jetbrains.kotlin.ir.builders.irReturn
 import org.jetbrains.kotlin.ir.declarations.IrDeclaration
+import org.jetbrains.kotlin.ir.declarations.IrDeclarationOrigin
 import org.jetbrains.kotlin.ir.declarations.IrFunction
 import org.jetbrains.kotlin.ir.declarations.IrLocalDelegatedProperty
 import org.jetbrains.kotlin.ir.declarations.IrProperty
@@ -129,7 +130,7 @@ abstract class BaseIrGenerationExtension: IrGenerationExtension {
     fun IrCall.tryGetStateReadCallName(irBuilder: DeclarationIrBuilder, irFunction: IrFunction): IrExpression? {
         // 判断 MutableState / State 的 <get-value> 函数调用
         val functionName = symbol.owner.name.asString()
-        if (functionName == "<get-state3>") {
+        if (functionName == "<get-currentTestCase>") {
             println(this)
         }
         val receiver = dispatchReceiver ?: extensionReceiver
@@ -151,19 +152,46 @@ abstract class BaseIrGenerationExtension: IrGenerationExtension {
         }
         // 方法局部委托属性的调用，需要通过变量找到对应的委托属性
         var localDelegatedProperty: IrLocalDelegatedProperty? = null
-        irFunction.body?.acceptChildrenVoid(object : NestedFunctionAwareVisitor() {
-            override fun visitLocalDelegatedProperty(declaration: IrLocalDelegatedProperty) {
-                if (declaration.getter == symbol.owner
-                    && declaration.delegate.type.classFqName?.asString() in STATE_CLASS_NAMES) {
-                    localDelegatedProperty = declaration
+        // 需要处理 「lambda 内部捕获外部 Function 定义的 State」这种场景
+        val outerFunctions = irFunction.getOuterFunctions()
+        outerFunctions.forEach {
+            it.body?.acceptChildrenVoid(object : NestedFunctionAwareVisitor() {
+                override fun visitLocalDelegatedProperty(declaration: IrLocalDelegatedProperty) {
+                    if (declaration.getter == symbol.owner
+                        && declaration.delegate.type.classFqName?.asString() in STATE_CLASS_NAMES) {
+                        localDelegatedProperty = declaration
+                    }
+                    super.visitLocalDelegatedProperty(declaration)
                 }
-                super.visitLocalDelegatedProperty(declaration)
-            }
-        })
+            })
+        }
         if (localDelegatedProperty != null) {
             return irBuilder.irGet(localDelegatedProperty.delegate)
         }
         return null
+    }
+
+    /**
+     * 获取当前函数的所有外层函数（包含当前函数）
+     */
+    private fun IrFunction.getOuterFunctions(): List<IrFunction> {
+
+        fun IrFunction.isLambda(): Boolean {
+            return origin in listOf(IrDeclarationOrigin.INLINE_LAMBDA, IrDeclarationOrigin.LOCAL_FUNCTION_FOR_LAMBDA)
+        }
+
+        val functions = mutableListOf<IrFunction>()
+        var current: IrDeclaration? = this
+        while (current != null) {
+            if (current is IrFunction) {
+                functions.add(current)
+                if (!current.isLambda()) {
+                    break
+                }
+            }
+            current = current.parent as? IrDeclaration
+        }
+        return functions
     }
 
     fun IrCall.tryGetCompositionLocalReadCallName(): IrExpression? {

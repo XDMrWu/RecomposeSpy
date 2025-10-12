@@ -30,7 +30,10 @@ class IdePluginReporter: IRecomposeSpyReporter, CoroutineScope {
 
     private val taskFlow = MutableSharedFlow<suspend () -> Unit>(extraBufferCapacity = Int.MAX_VALUE)
 
-    private val json = Json { ignoreUnknownKeys = true }
+    private val json = Json {
+        ignoreUnknownKeys = true
+        encodeDefaults = true
+    }
 
     init {
         launch {

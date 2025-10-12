@@ -19,6 +19,7 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DontMemoize
 import androidx.compose.runtime.ExperimentalComposeRuntimeApi
 import androidx.compose.runtime.InternalComposeTracingApi
 import androidx.compose.runtime.getValue
@@ -29,6 +30,9 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import com.xdmrwu.recompose.spy.demo.case.analyze.InlineRecomposeTest
+import com.xdmrwu.recompose.spy.demo.case.analyze.ParamChangeTest
+import com.xdmrwu.recompose.spy.demo.case.analyze.SubRecomposeTest
 import com.xdmrwu.recompose.spy.demo.case.compiler.StateChangeTest
 import com.xdmrwu.recompose.spy.demo.theme.RecomposeSpyTheme
 import com.xdmrwu.recompose.spy.runtime.RecomposeSpy
@@ -68,8 +72,14 @@ data class TestCase(
 )
 
 val testCases = listOf(
-    TestCase("State Change") {
-        StateChangeTest()
+    TestCase("Inline Recompose Test") {
+        InlineRecomposeTest()
+    },
+    TestCase("Sub Recompose Test") {
+        SubRecomposeTest()
+    },
+    TestCase("Param Change Test") {
+        ParamChangeTest()
     },
 )
 
@@ -91,6 +101,8 @@ fun TestCaseList(modifier: Modifier = Modifier) {
                             currentTestCase = it
                         }
                     ) {
+                        test()
+                        // TODO，为什么被设置为 invalidate，导致重组
                         Text(it.name, modifier = Modifier.padding(8.dp), color = Color.Black)
                     }
                 }
@@ -106,4 +118,8 @@ fun TestCaseList(modifier: Modifier = Modifier) {
     BackHandler(currentTestCase != null) {
         currentTestCase = null
     }
+}
+
+private fun test() {
+    println("test")
 }
