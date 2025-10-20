@@ -16,6 +16,7 @@ import androidx.compose.runtime.snapshots.tooling.observeSnapshots
 import com.xdmrwu.recompose.spy.runtime.printer.IRecomposeSpyReporter
 import com.xdmrwu.recompose.spy.runtime.printer.IdePluginReporter
 import com.xdmrwu.recompose.spy.runtime.printer.LogReporter
+import kotlin.math.max
 
 /**
  * @Author: wulinpeng
@@ -113,10 +114,15 @@ class RecomposeSpy {
 
     private fun getStateReadStackTrace(): List<String> {
         val lines = RuntimeException().stackTraceToString().lines().map { it.trim() }
-        val index = lines.indexOfFirst {
+        val firstIndex = lines.indexOfFirst {
+            // 开启系统 StackTrace 后，第一个可读的调用栈位置
             it.contains("androidx.compose.runtime.snapshots.SnapshotKt.readable(")
         }
-        return lines.subList(index + 1, lines.size)
+        val secondIndex = lines.indexOfFirst {
+            // 开启编译期插桩后，第一个可读的调用栈位置
+            it.contains("com.xdmrwu.recompose.spy.runtime.RecomposeSpyKt.recordReadValue")
+        }
+        return lines.subList(max(firstIndex, secondIndex) + 1, lines.size)
     }
 
     @Composable
