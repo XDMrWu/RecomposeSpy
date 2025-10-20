@@ -26,6 +26,8 @@ class RecomposeSpyTrackNode(
     val nonRestartable: Boolean = false,
     var compositionCount: Int = 0,
     var recomposeReason: String = "",
+    var startTimestamp: Long = 0L,
+    var endTimestamp: Long = 0L,
     val children: MutableList<RecomposeSpyTrackNode> = mutableListOf()
 ) {
 

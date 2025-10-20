@@ -30,6 +30,7 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import com.xdmrwu.recompose.spy.demo.case.analyze.ComposableLambdaCase
 import com.xdmrwu.recompose.spy.demo.case.analyze.InlineRecomposeTest
 import com.xdmrwu.recompose.spy.demo.case.analyze.ParamChangeTest
 import com.xdmrwu.recompose.spy.demo.case.analyze.SubRecomposeTest
@@ -80,6 +81,9 @@ val testCases = listOf(
     },
     TestCase("Param Change Test") {
         ParamChangeTest()
+    },
+    TestCase("Composable Lambda Test") {
+        ComposableLambdaCase()
     },
 )
 

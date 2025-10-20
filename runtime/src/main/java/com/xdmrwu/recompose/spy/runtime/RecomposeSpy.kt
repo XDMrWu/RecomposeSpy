@@ -145,6 +145,7 @@ class RecomposeSpy {
             val parentNode = trackNodeStack[trackNodeStack.size - 2]
             parentNode.addChild(node)
         }
+        node.startTimestamp = System.currentTimeMillis()
     }
 
     @Composable
@@ -161,6 +162,7 @@ class RecomposeSpy {
         currentRecomposeScopeStack.removeAt(currentRecomposeScopeStack.size - 1)
 
         val node = trackNodeStack.removeAt(trackNodeStack.size - 1)
+        node.endTimestamp = System.currentTimeMillis()
         assert(node.fqName == fqName) {
             "Expected to be called in the same composable call as StartRecomposeSpy, but got $fqName instead of ${node.fqName}"
         }
