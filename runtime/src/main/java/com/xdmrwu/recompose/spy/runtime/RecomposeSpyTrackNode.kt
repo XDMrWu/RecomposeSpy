@@ -66,7 +66,7 @@ class RecomposeSpyTrackNode(
         }
     }
     fun fillRecomposeReason() {
-        recomposeReason = this.recomposeReason()
+//        recomposeReason = this.recomposeReason()
         children.forEach { child ->
             child.fillRecomposeReason()
         }
@@ -96,7 +96,6 @@ data class RecomposeReadState(
     val endLine: Int,
     val startOffset: Int,
     val endOffset: Int,
-    var currentComposableRead: Boolean = false,
     var stackTrace: List<String> = emptyList()
 ) {
     @Transient

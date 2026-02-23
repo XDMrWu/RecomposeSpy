@@ -164,15 +164,17 @@ class RecomposeSpy {
             "Expected to be called in the same composable call as StartRecomposeSpy, but got $fqName instead of ${node.fqName}"
         }
 
-        val invalidateSets = currentInvalidationMap.remove(currentRecomposeScope)
+        val invalidateSets = currentInvalidationMap.get(currentRecomposeScope)
+        val recomposeScope = currentRecomposeScope
+        println(recomposeScope)
 
         val stateChangedInfo = stateReadInfoList.filter {
             it.second == currentRecomposeScope
-                    && invalidateSets?.any { state -> state === it.first.state } == true
+                    && invalidateSets?.any { state -> state === it.first.state && it.third === node } == true
         }.map {
-            it.first.copy().also { state ->
-                state.currentComposableRead = it.third === node
-            }
+            // 使用后 remove，避免影响后续分析
+            invalidateSets?.remove(it.first.state)
+            it.first
         }.distinct()
 
         val paramStates = paramNames.mapIndexed { index, name ->
