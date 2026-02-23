@@ -3,7 +3,6 @@
 package com.xdmrwu.recompose.spy.runtime
 
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.Composition
 import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.ExperimentalComposeRuntimeApi
@@ -14,7 +13,8 @@ import androidx.compose.runtime.currentComposer
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.staticCompositionLocalOf
 import androidx.compose.runtime.tooling.CompositionObserver
-import androidx.compose.runtime.tooling.observe
+import androidx.compose.runtime.tooling.ObservableComposition
+import androidx.compose.runtime.tooling.setObserver
 
 /**
  * @Author: wulinpeng
@@ -24,22 +24,49 @@ import androidx.compose.runtime.tooling.observe
 val LocalRecomposeSpy = staticCompositionLocalOf<RecomposeSpy?> { null }
 
 @Composable
-fun RecomposeSpyContainer(content: @Composable () -> Unit) {
+fun RecomposeSpyContainer(trackScope: RecomposeSpyTrackScope, content: @Composable () -> Unit) {
+
     val recomposeSpy = remember {
         RecomposeSpy()
     }
-    currentComposer.composition.observe(object: CompositionObserver {
-        override fun onBeginComposition(
-            composition: Composition,
-            invalidationMap: Map<RecomposeScope, Set<Any>>
-        ) {
-            recomposeSpy.currentInvalidationMap = invalidationMap
+
+    currentComposer.composition.setObserver(object : CompositionObserver {
+
+        override fun onBeginComposition(composition: ObservableComposition) {
         }
 
-        override fun onEndComposition(composition: Composition) {
+        override fun onEndComposition(composition: ObservableComposition) {
+        }
 
+        override fun onReadInScope(scope: RecomposeScope, value: Any) {
+            if (trackScope == RecomposeSpyTrackScope.SCOPE_ALL) {
+                // 监听所有的 Snapshot
+                recomposeSpy.onReadState(scope, RecomposeReadState("", "", -1, -1, -1, -1).also { it.state = value })
+            }
+        }
+
+        override fun onScopeDisposed(scope: RecomposeScope) {
+
+        }
+
+        override fun onScopeEnter(scope: RecomposeScope) {
+
+        }
+
+        override fun onScopeExit(scope: RecomposeScope) {
+
+        }
+        override fun onScopeInvalidated(scope: RecomposeScope, value: Any?) {
+            value ?: return
+            recomposeSpy.currentInvalidationMap.apply {
+                if (!containsKey(scope)) {
+                    set(scope, mutableSetOf())
+                }
+                get(scope)?.add(value)
+            }
         }
     })
+
     CompositionLocalProvider(LocalRecomposeSpy provides recomposeSpy) {
         content()
     }

@@ -45,24 +45,11 @@ class RecomposeSpy {
 
         fun init(scope: RecomposeSpyTrackScope) {
             this.trackScope = scope
-            if (scope == RecomposeSpyTrackScope.SCOPE_ALL) {
-                // 监听所有的 Snapshot
-                Snapshot.observeSnapshots(object : SnapshotObserver {
-                    override fun onPreCreate(
-                        parent: Snapshot?,
-                        readonly: Boolean
-                    ): SnapshotInstanceObservers? {
-                        return SnapshotInstanceObservers(readObserver = {
-                            onReadState(RecomposeReadState("", "", -1, -1, -1, -1).also { it.state = it })
-                        })
-                    }
-                })
-            }
         }
 
         internal fun onReadState(readState: RecomposeReadState) {
             recomposeSpyList.forEach { spy ->
-                spy.onReadState(readState)
+                spy.onReadState(null, readState)
             }
         }
 
@@ -86,12 +73,16 @@ class RecomposeSpy {
     // TODO 假设全局只有一个 Composition
     private val trackNodeStack = mutableListOf<RecomposeSpyTrackNode>()
 
-    var currentInvalidationMap: Map<RecomposeScope, Set<Any>> = emptyMap()
+    val currentInvalidationMap: MutableMap<RecomposeScope, MutableSet<Any>> = mutableMapOf()
     private var currentRecomposeScopeStack: MutableList<RecomposeScope> = mutableListOf()
     private val stateReadInfoList = mutableListOf<Triple<RecomposeReadState, RecomposeScope, RecomposeSpyTrackNode>>()
 
-    fun onReadState(readState: RecomposeReadState) {
+    fun onReadState(targetScope: RecomposeScope?, readState: RecomposeReadState) {
         currentRecomposeScopeStack.lastOrNull()?.let { scope ->
+            // 仅处理业务自己的 RecomposeScope
+            if (targetScope != null && targetScope != scope) {
+                return
+            }
             // 仅在业务自己的 RecomposeScope 内追踪 State Read，减少抓栈耗时
             // TODO mapping 处理
             val stackTrace = if (trackScope in listOf(RecomposeSpyTrackScope.SCOPE_PROJECT_SOURCE_WITH_STACK_TRACE, RecomposeSpyTrackScope.SCOPE_ALL)) {
@@ -173,9 +164,11 @@ class RecomposeSpy {
             "Expected to be called in the same composable call as StartRecomposeSpy, but got $fqName instead of ${node.fqName}"
         }
 
+        val invalidateSets = currentInvalidationMap.remove(currentRecomposeScope)
+
         val stateChangedInfo = stateReadInfoList.filter {
             it.second == currentRecomposeScope
-                    && currentInvalidationMap[currentRecomposeScope]?.any { state -> state === it.first.state } == true
+                    && invalidateSets?.any { state -> state === it.first.state } == true
         }.map {
             it.first.copy().also { state ->
                 state.currentComposableRead = it.third === node
