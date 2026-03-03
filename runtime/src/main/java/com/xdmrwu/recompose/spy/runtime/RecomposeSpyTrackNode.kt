@@ -66,7 +66,7 @@ class RecomposeSpyTrackNode(
         }
     }
     fun fillRecomposeReason() {
-//        recomposeReason = this.recomposeReason()
+        recomposeReason = this.recomposeReason()
         children.forEach { child ->
             child.fillRecomposeReason()
         }
